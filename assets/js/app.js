@@ -49,6 +49,23 @@ function deriveDimensions(plan){
 }
 
 const STORE = 'huxing-design-v1';
+const LAYER_STORE = 'huxing-layers-v1';
+const DEFAULT_LAYERS = {dims:true, labels:true, furn:true, grid:true, bearing:true, wallSnap:true};
+
+function loadLayers(){
+  const layers = {...DEFAULT_LAYERS};
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYER_STORE));
+    Object.keys(layers).forEach(key => {
+      if (typeof saved?.[key] === 'boolean') layers[key] = saved[key];
+    });
+  } catch(e) {}
+  return layers;
+}
+function saveLayers(){
+  try { localStorage.setItem(LAYER_STORE, JSON.stringify(ui.layers)); } catch(e) {}
+}
+
 function load(){
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
@@ -90,8 +107,7 @@ function syncPlanRefs(){
   WALLS = state.plan.walls; WINS = state.plan.wins; DOORS = state.plan.doors; SLIDES = state.plan.slides; ROOMS = state.plan.rooms;
 }
 syncPlanRefs();
-const ui = {tool:'select', sel:null, mA:null, mCur:null,
-  layers:{dims:true, labels:true, furn:true, grid:false, bearing:false, wallSnap:true}};
+const ui = {tool:'select', sel:null, mA:null, mCur:null, layers:loadLayers()};
 let view = {x0:0, y0:0, s:.06};
 const undoStack = [], redoStack = [];
 
@@ -959,8 +975,15 @@ document.querySelectorAll('.menu-pop .btn').forEach(b => b.addEventListener('cli
 document.querySelectorAll('#viewSeg .btn').forEach(b => b.onclick = () => setView(b.dataset.view));
 
 document.querySelectorAll('#tools .btn').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+function syncLayerButtons(){
+  document.querySelectorAll('#layers .btn').forEach(b => b.classList.toggle('on', !!ui.layers[b.dataset.layer]));
+}
+syncLayerButtons();
 document.querySelectorAll('#layers .btn').forEach(b => b.onclick = () => {
-  const k = b.dataset.layer; ui.layers[k] = !ui.layers[k]; b.classList.toggle('on', ui.layers[k]);
+  const k = b.dataset.layer;
+  ui.layers[k] = !ui.layers[k];
+  saveLayers();
+  b.classList.toggle('on', ui.layers[k]);
   if (k === 'dims') $('#gDims').setAttribute('display', ui.layers.dims ? 'inline' : 'none');
   else if (k !== 'wallSnap') renderAll();
 });
