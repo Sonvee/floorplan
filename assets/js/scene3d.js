@@ -1035,7 +1035,7 @@ function buildLabels(){
 // 只重建变化的部分
 function sync(force){
   if (!inited || (!active && !force)) return;
-  const a = JSON.stringify([state.plan, state.rooms, state.demolished, opt.cut]), f = JSON.stringify(state.furniture), l = JSON.stringify([state.plan.rooms, state.rooms, opt.cut]);
+  const a = JSON.stringify([state.plan, state.rooms, opt.cut]), f = JSON.stringify(state.furniture), l = JSON.stringify([state.plan.rooms, state.rooms, opt.cut]);
   if (force || a !== sigArch){ sigArch = a; buildArch(); }
   if (force || f !== sigFurn){ sigFurn = f; buildFurn(); }
   if (force || l !== sigLabels){ sigLabels = l; buildLabels(); }

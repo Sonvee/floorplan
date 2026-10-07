@@ -314,13 +314,6 @@ main {
 #plan.tool-plan-edit [data-door]:hover {
   filter: drop-shadow(0 0 2px rgba(181, 101, 58, 0.75));
 }
-#plan.tool-demolish .wall {
-  pointer-events: all;
-  cursor: pointer;
-}
-#plan.tool-demolish .wall:hover {
-  fill: #d9894f;
-}
 #plan.tool-select .room:hover {
   opacity: 0.82;
 }

@@ -19,7 +19,6 @@ function defaultState(){
     furniture:defaultFurniture(),
     plan:{walls:[], wins:[], doors:[], slides:[], rooms:[], dimensions:[]},
     rooms:{},
-    demolished:[],
     measures:[]
   };
 }
@@ -145,7 +144,6 @@ function fixState(s){
   s.plan = {...plan, dimensions:Array.isArray(p.dimensions) ? p.dimensions : deriveDimensions(plan)};
   const roomDefaults = {}; s.plan.rooms.forEach(r => roomDefaults[r.id] = {name:r.name || r.id, mat:r.mat || 'wood'});
   s.rooms = Object.assign(roomDefaults, s.rooms || {});
-  s.demolished = Array.isArray(s.demolished) ? s.demolished : [];
   s.measures = Array.isArray(s.measures) ? s.measures : [];
   return s;
 }
@@ -186,7 +184,7 @@ const getF = id => state.furniture.find(f => f.id === id);
 
 /* ======================= 几何工具 ======================= */
 
-function snapRects(){ return WALLS.filter((w,i) => !state.demolished.includes('w'+i)).concat(WINS); }
+function snapRects(){ return WALLS.concat(WINS); }
 
 /* ======================= 颜色 / 材质图案 ======================= */
 
@@ -241,10 +239,9 @@ function renderFurn(){
 
 function renderWalls(){
   $('#gWalls').innerHTML = WALLS.map((w,i) => {
-    const [x0,y0,x1,y1,k] = w, id = 'w'+i, dem = state.demolished.includes(id);
-    let fill = k==='b' ? (ui.layers.bearing ? '#b8412c' : '#26241f') : k==='low' ? '#e9e3d8' : k==='e' ? '#8f897d' : '#a7a195';
-    let ex = k==='low' ? 'stroke="#8f897d" stroke-width="1" vector-effect="non-scaling-stroke"' : '';
-    if (dem){ fill = 'rgba(198,91,58,.12)'; ex = 'stroke="#c65b3a" stroke-width="1.2" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"'; }
+    const [x0,y0,x1,y1,k] = w, id = 'w'+i;
+    const fill = k==='b' ? (ui.layers.bearing ? '#b8412c' : '#26241f') : k==='low' ? '#e9e3d8' : k==='e' ? '#8f897d' : '#a7a195';
+    const ex = k==='low' ? 'stroke="#8f897d" stroke-width="1" vector-effect="non-scaling-stroke"' : '';
     return `<rect class="wall" data-wall="${id}" x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="${fill}" ${ex}/>`;
   }).join('');
 }
@@ -481,8 +478,6 @@ function overviewPanel(){
   let cost = 0;
   const matRows = Object.entries(byMat).map(([m,a]) => { const c = a*MATS[m].price*1.05; cost += c;
     return `<tr><td><span class="sw" style="background:${MATS[m].sw}"></span>${MATS[m].name}</td><td class="r">${fmt(a,1)} m²</td><td class="r">¥${Math.round(c).toLocaleString()}</td></tr>`; }).join('');
-  const dem = state.demolished.map(id => WALLS[+id.slice(1)]);
-  const demLen = dem.reduce((a,w) => a + Math.max(w[2]-w[0], w[3]-w[1]), 0) / 1000;
   return `
   <section><h3>房间面积 <small>点击查看 / 更换地面</small></h3>
     <table>${rows}</table>
@@ -492,8 +487,7 @@ function overviewPanel(){
     <table>${matRows}</table>
     <div class="total"><span>地面材料合计</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
   <section><h3>方案统计</h3>
-    <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div>
-      <div><small>拆除墙体</small><span class="big">${fmt(demLen,1)}</span> m</div></div>
+    <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div></div>
     <div class="actions"><button class="btn" id="clearMeasure">清除测量 (${state.measures.length})</button>
       <button class="btn danger" id="clearFurn">清空家具</button></div></section>
   ${COARSE ? `<section><h3>触屏操作</h3><div class="kbd">
@@ -506,7 +500,6 @@ function overviewPanel(){
   </div></section>` : ''}
   ${`<section><h3>键盘快捷键</h3><div class="kbd">
     <kbd>拖拽</kbd><span>左侧家具拖入平面图</span><kbd>V</kbd><span>选择 / 移动</span><kbd>M</kbd><span>测量（Shift 水平/垂直）</span>
-    <kbd>X</kbd><span>拆改非承重墙（黑色为承重墙）</span><kbd>R</kbd><span>旋转 90°（Shift 反向）</span><kbd>方向键</kbd><span>微调 10mm（Shift 100mm）</span>
     <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
   </div></section>`}`;
 }
@@ -544,9 +537,9 @@ function clearCanvas(){
   const hasContent = state.furniture.length || state.plan.walls.length || state.plan.wins.length
     || state.plan.doors.length || state.plan.slides.length || state.plan.rooms.length
     || state.plan.dimensions.length || Object.keys(state.rooms).length
-    || state.demolished.length || state.measures.length;
+    || state.measures.length;
   if (!hasContent) return toast('当前画布已经为空');
-  if (!confirm('确定清空整个画布吗？\n家具、墙体、门窗、房间、地面材料、拆改标记和测量线都会删除，可点「撤销」恢复。')) return;
+  if (!confirm('确定清空整个画布吗？\n家具、墙体、门窗、房间、地面材料和测量线都会删除，可点「撤销」恢复。')) return;
   ui.sel = null;
   ui.mA = null;
   ui.mCur = null;
@@ -680,15 +673,6 @@ function addItem(it, x, y){
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
   toast(`已添加「${name}」${w}×${d}`);
 }
-function toggleWall(id){
-  const w = WALLS[+id.slice(1)];
-  if (w[4]==='b') return toast('承重墙（黑色）不可拆除');
-  if (w[4]==='e') return toast('外墙属于建筑外围护结构，不建议拆除');
-  const on = state.demolished.includes(id);
-  mutate(() => state.demolished = on ? state.demolished.filter(x => x!==id) : [...state.demolished, id]);
-  toast(on ? '已恢复墙体' : `已标记拆除 ${Math.max(w[2]-w[0], w[3]-w[1])} mm 墙体`);
-}
-
 function setTool(t){
   ui.tool = t; ui.mA = null; ui.mCur = null;
   svg.setAttribute('class', 'tool-' + t);
@@ -699,8 +683,7 @@ function setTool(t){
 function syncModeHint(){
   const hints = {select:'',
     measure:COARSE ? '按住拖出测量线，或依次点两点 · 靠近墙面自动吸附 · 点「选择」退出'
-      : '点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消',
-    demolish:'点击灰色非承重墙标记拆除，再次点击恢复 · 黑色承重墙不可拆'};
+      : '点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消'};
   const h = $('#modehint'); h.textContent = hints[ui.tool]; h.classList.toggle('show', !!hints[ui.tool]);
 }
 
@@ -808,8 +791,6 @@ svg.addEventListener('pointerdown', e => {
   const h = t.closest('[data-handle]');
   if (h && ui.sel?.kind === 'furn'){
     drag = {kind:h.dataset.handle, id:ui.sel.id, sx:e.clientX, sy:e.clientY, before:snap(), moved:false};
-  } else if (ui.tool === 'demolish' && t.closest('[data-wall]')){
-    toggleWall(t.closest('[data-wall]').dataset.wall); return;
   } else if (ui.tool === 'select' && t.closest('[data-fid]')){
     const f = getF(t.closest('[data-fid]').dataset.fid);
     if (ui.sel?.id !== f.id) select({kind:'furn', id:f.id});
@@ -900,7 +881,6 @@ document.addEventListener('keydown', e => {
   else if (is3D() && ['v','m','x','f','+','=','-'].includes(k)) return;
   else if (k === 'v') setTool('select');
   else if (k === 'm') setTool('measure');
-  else if (k === 'x') setTool('demolish');
   else if (k === 'f') fitView();
   else if (k === 'r') rotateSel(e.shiftKey ? -90 : 90);
   else if (k === 'delete' || k === 'backspace'){ e.preventDefault(); deleteSel(); }
