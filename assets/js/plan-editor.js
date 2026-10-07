@@ -906,10 +906,33 @@ function nudgeSelected(dx, dy) {
   commitPlan(before, () => {});
 }
 
-function rotateSelectedPlan() {
+function rotateSelectedPlan(direction = 1) {
   const selected = editor.selected;
-  if (!selected || selected.kind === 'room') return;
+  if (!selected) return;
   const before = snap();
+  const turn = direction < 0 ? -1 : 1;
+
+  if (selected.kind === 'room') {
+    const room = state.plan.rooms[selected.index];
+    if (!room) return;
+    if (isRoomRectangle(room)) {
+      const dimensions = roomRectDimensions(room);
+      setRoomRectDimensions(room, dimensions.width, dimensions.length);
+    } else {
+      const center = polygonCenter(room.poly);
+      room.poly = room.poly.map(([x, y]) => {
+        const dx = x - center[0];
+        const dy = y - center[1];
+        return turn > 0
+          ? [center[0] - dy, center[1] + dx]
+          : [center[0] + dy, center[1] - dx];
+      });
+      room.at = polygonCenter(room.poly);
+    }
+    commitPlan(before, () => {});
+    return;
+  }
+
   const entity = selected.kind === 'wall'
     ? state.plan.walls[selected.index]
     : selected.kind === 'window'
@@ -917,7 +940,13 @@ function rotateSelectedPlan() {
       : state.plan.doors[selected.index];
   if (!entity) return;
   const dimensions = entityDimensions(entity, selected.kind);
-  setEntityDimensions(entity, selected.kind, dimensions.width, dimensions.length, dimensions.axis === 'h' ? 'v' : 'h');
+  setEntityDimensions(
+    entity,
+    selected.kind,
+    dimensions.width,
+    dimensions.length,
+    dimensions.axis === 'h' ? 'v' : 'h'
+  );
   commitPlan(before, () => {});
 }
 
@@ -1412,9 +1441,10 @@ function onPlanKeyDown(event) {
     duplicateSelectedPlan();
     return;
   }
-  if (!modifier && key === 'r' && editor.selected) {
+  const rotateKey = event.code === 'KeyR' || key === 'r';
+  if (!modifier && rotateKey && editor.selected) {
     consume();
-    rotateSelectedPlan();
+    rotateSelectedPlan(event.shiftKey ? -1 : 1);
     return;
   }
   if (!modifier && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key) && editor.selected) {
