@@ -283,7 +283,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
         <button class="btn" id="exportPng">导出图片</button>
         <button class="btn" id="exportJson">导出方案 JSON</button>
         <button class="btn" id="importJson">导入方案</button>
-        <button class="btn danger" id="reset">重置为默认方案</button>
+        <button class="btn danger" id="reset">重置为示例方案</button>
       </div></details>
     <input type="file" id="fileIn" accept=".json,application/json" hidden>
   </header>
@@ -338,80 +338,6 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
 
 <script>
 const nm = s => s;
-/* ============================================================
- *  户型数据（单位 mm，原点 = 左侧外墙内皮 / 顶部外墙内皮）
- *  所有数值均按原始户型图尺寸标注推算：
- *  上：1580/240/2760/240/1540/240/3670 = 10270
- *  下：2180/240/2160/240/5450/240/1340 = 11850
- *  左：3370/1580/240/2770/240/2360 = 10560
- *  右：3370/240/2760/240/3950 = 10560
- * ============================================================ */
-// 墙体：[x0,y0,x1,y1,类型]  b=承重(黑) e=外墙 n=可拆非承重 low=矮墙
-const WALLS = [
-  // 顶部外墙
-  [1580,-240,2120,0,'b'],[1580,0,1820,300,'b'],[2120,-240,4580,0,'e'],[4580,-240,5140,0,'e'],
-  [5760,-240,6050,0,'e'],[6050,-240,6600,0,'b'],[6360,0,6600,300,'b'],[6600,-240,9960,0,'e'],
-  [9960,-240,10510,0,'b'],[10270,0,10510,300,'b'],
-  // 右侧外墙
-  [10270,300,10510,800,'e'],[10270,2600,10510,3090,'e'],[10270,3090,10510,4260,'b'],
-  [10270,5740,10510,6370,'b'],[9960,6370,10510,6610,'b'],[10270,6610,10510,7400,'b'],
-  [10270,9770,10510,10560,'b'],[9960,10560,10510,10800,'b'],
-  // 底部 / 阳台
-  [4580,10560,9960,10800,'e'],[10510,10560,12090,10800,'e'],[11850,9960,12090,10560,'e'],
-  // 客厅左墙（入户门两侧）
-  [4580,9200,4820,10560,'e'],[4580,7960,4820,8310,'e'],
-  // 餐厅 / 厨房外墙
-  [3620,7960,4580,8200,'e'],[2180,7960,3620,8200,'b'],[2180,7590,2420,7960,'b'],[2180,7400,2420,7590,'n'],
-  [-240,7960,2180,8200,'e'],[-240,3610,0,7960,'e'],
-  // 洗衣阳台
-  [0,4950,200,5190,'n'],[200,4950,1275,5190,'low'],[1580,3370,2420,3825,'b'],
-  [2180,4430,2420,5796,'n'],[2090,4950,2180,5190,'n'],
-  // 客卫
-  [2420,4950,4580,5190,'n'],[4580,3280,4820,4075,'n'],[4580,4860,4820,5190,'n'],[2420,3370,4580,3610,'n'],
-  // 小孩房 / 主卫
-  [4580,0,4820,2400,'n'],[4820,2080,6360,2320,'n'],[6360,300,6600,1198,'n'],[6360,1983,6600,2400,'n'],
-  // 过道 / 主卧 / 子女房
-  [6083,3370,6600,3707,'b'],[6360,3280,6600,3370,'n'],[6600,3370,9960,3610,'n'],[9960,3370,10270,3610,'b'],
-  [6083,4600,6323,6610,'n'],[6323,6370,9960,6610,'n'],
-];
-// 窗
-const WINS = [
-  [5140,-240,5760,0],[1580,300,1820,3370],[-240,3370,1580,3610],[2180,3825,2420,4430],
-  [10510,6370,12090,6610],[11850,6610,12090,9960],
-  // 飘窗（主卧 / 子女房）
-  [10510,660,11130,760],[11030,760,11130,2650],[10510,2650,11130,2750],
-  [10510,4110,11130,4210],[11030,4210,11130,5785],[10510,5785,11130,5885],
-];
-// 平开门：洞口、铰点、关闭方向、开启方向、门宽
-const DOORS = [
-  {name:'小孩房门',rect:[4580,2400,4820,3280],h:[4580,3280],c:[0,-1],o:[-1,0],len:880},
-  {name:'主卧门',rect:[6360,2400,6600,3280],h:[6600,3280],c:[0,-1],o:[1,0],len:880},
-  {name:'主卫门',rect:[6360,1198,6600,1983],h:[6360,1198],c:[0,1],o:[-1,0],len:785},
-  {name:'客卫门',rect:[4580,4075,4820,4860],h:[4580,4860],c:[0,-1],o:[-1,0],len:785},
-  {name:'子女房门',rect:[6083,3707,6323,4600],h:[6323,4600],c:[0,-1],o:[1,0],len:893},
-  {name:'入户门',rect:[4580,8310,4820,9200],h:[4820,9200],c:[0,-1],o:[1,0],len:890,entry:true},
-];
-// 推拉门
-const SLIDES = [
-  {rect:[10270,7400,10510,9770],v:true},
-  {rect:[1275,4950,2090,5190],v:false},
-];
-const R = (x0,y0,x1,y1) => [[x0,y0],[x1,y0],[x1,y1],[x0,y1]];
-const ROOMS = [
-  {id:'master', name:'主卧室', poly:R(6600,0,10270,3370), mat:'wood', at:[8435,2420]},
-  {id:'mbath', name:'主卫浴', poly:R(4820,0,6360,2080), mat:'antislip', at:[5980,1780]},
-  {id:'kid', name:'小孩房', poly:R(1820,0,4580,3370), mat:'wood', at:[3380,2330]},
-  {id:'gbath', name:'客卫浴', poly:R(2420,3610,4580,4950), mat:'antislip', at:[3760,4620]},
-  {id:'laundry', name:'洗衣阳台', poly:R(0,3610,2180,4950), mat:'antislip', at:[1250,4330]},
-  {id:'child', name:'子女房', poly:R(6323,3610,10270,6370), mat:'wood', at:[8850,4850]},
-  {id:'kitchen', name:'厨房', poly:R(0,5190,2180,7960), mat:'tile600', at:[1300,6500]},
-  {id:'dining', name:'餐厅', poly:[[2420,5190],[4820,5190],[4820,7960],[2420,7960],[2420,7400],[2180,7400],[2180,5796],[2420,5796]], mat:'tile800', at:[3900,5520]},
-  {id:'hall', name:'过道', poly:[[4820,2320],[6360,2320],[6360,3370],[6083,3370],[6083,6610],[4820,6610]], mat:'tile800', at:[5450,4450]},
-  {id:'living', name:'客厅', poly:R(4820,6610,10270,10560), mat:'tile800', at:[7600,7560]},
-  {id:'balcony', name:'休闲阳台', poly:R(10510,6610,11850,10560), mat:'walnut', at:[11180,9450]},
-  {id:'bay1', name:'主卧飘窗', poly:[[10270,800],[10510,800],[10510,760],[11030,760],[11030,2650],[10510,2650],[10510,2600],[10270,2600]], mat:'marble', counted:false},
-  {id:'bay2', name:'子女房飘窗', poly:[[10270,4260],[10510,4260],[10510,4210],[11030,4210],[11030,5785],[10510,5785],[10510,5740],[10270,5740]], mat:'marble', counted:false},
-];
 const MATS = {
   wood:    {name:'橡木地板', price:320, sw:'#d8b88a'},
   walnut:  {name:'胡桃木地板', price:380, sw:'#9b7250'},
@@ -458,53 +384,57 @@ let _n = 1;
 const uid = () => 'f' + Date.now().toString(36) + (_n++);
 const F = (type,name,cx,cy,w,d,rot=0,color) => ({id:uid(),type,name,cx,cy,w,d,rot,color:color||typeColor(type)});
 
-function defaultFurniture(){ return [
-  // 主卧
-  F('bed','双人床',8300,1000,1800,2000,0,'#c9d6df'), F('nightstand','床头柜',7150,220,450,400), F('nightstand','床头柜',9450,220,450,400),
-  F('wardrobe','衣柜',8800,3070,2400,600,180), F('baycushion','飘窗垫',10770,1705,520,1800),
-  // 主卫
-  F('shower','淋浴房',5270,450,900,900), F('toilet','马桶',5170,1500,400,700,270), F('vanity','浴室柜',6110,700,800,500,90),
-  // 小孩房
-  F('bed','单人床',2420,1000,1200,2000,0,'#e8d5b5'), F('desk','书桌',2120,2700,1200,600,270), F('chair','椅子',2700,2700,450,480,90),
-  F('wardrobe','衣柜',4280,1000,1600,600,90), F('bookshelf','书架',3500,150,800,300),
-  // 客卫
-  F('shower','淋浴区',2870,4280,900,1340), F('toilet','马桶',3560,3960,400,700), F('vanity','浴室柜',4150,3850,700,480),
-  // 洗衣阳台
-  F('washer','洗衣机',300,3960,600,600,270), F('vanity','洗衣池',250,4600,600,500,270),
-  // 厨房
-  F('counter','橱柜台面',300,6575,2770,600,270), F('counter','橱柜台面',1390,7660,1580,600,180),
-  F('stove','燃气灶',300,6200,750,450,270), F('ksink','水槽',1400,7680,800,450,180),
-  // 餐厅
-  F('fridge','冰箱',2770,5540,700,700), F('table','餐桌',3600,6650,1400,800,90),
-  F('chair','餐椅',2940,6320,450,480,270), F('chair','餐椅',2940,6980,450,480,270),
-  F('chair','餐椅',4260,6320,450,480,90), F('chair','餐椅',4260,6980,450,480,90),
-  F('cabinet','餐边柜',3500,7785,1600,350,180),
-  // 客厅
-  F('rug','地毯',7600,8950,2600,1800), F('tvstand','电视柜',7600,6810,2400,400), F('sofa','三人沙发',7600,10110,3000,900,180),
-  F('coffeetable','茶几',7600,8900,1300,650), F('armchair','单人沙发',9500,8900,850,850,90),
-  F('shoecab','鞋柜',4995,9900,1000,350,270), F('plant','绿植',9950,10250,500,500), F('plant','绿植',5250,7050,500,500),
-  // 子女房
-  F('bed','双人床',7323,5500,1500,2000,270,'#d8c7dc'), F('wardrobe','衣柜',8500,3910,2000,600),
-  F('desk','书桌',9500,6070,1200,600,180), F('chair','椅子',9500,5480,450,480), F('baycushion','飘窗垫',10770,4997,520,1575),
-  // 休闲阳台
-  F('roundtable','茶桌',11180,8200,600,600), F('armchair','休闲椅',11180,7520,750,750,0,'#d6b99a'),
-  F('armchair','休闲椅',11180,8880,750,750,180,'#d6b99a'), F('plant','绿植',11550,10250,500,500),
-];}
+function defaultFurniture(){ return []; }
 
 function defaultState(){
-  const rooms = {}; ROOMS.forEach(r => rooms[r.id] = {name:r.name, mat:r.mat});
-  return {furniture:defaultFurniture(), rooms, demolished:[], measures:[]};
+  return {
+    furniture:defaultFurniture(),
+    plan:{walls:[], wins:[], doors:[], slides:[], rooms:[], dimensions:[]},
+    rooms:{},
+    demolished:[],
+    measures:[]
+  };
+}
+
+function deriveDimensions(plan){
+  const points = [];
+  (plan.walls || []).forEach(([x0,y0,x1,y1]) => points.push([x0,y0],[x1,y1]));
+  (plan.rooms || []).forEach(r => (r.poly || []).forEach(point => points.push(point)));
+  if (!points.length) return [];
+  const xs = points.map(([x]) => x), ys = points.map(([,y]) => y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const padX = Math.max(500, (maxX - minX) * .08), padY = Math.max(500, (maxY - minY) * .08);
+  return [
+    {orientation:'h', offset:minY - padY, start:minX, segments:[maxX - minX]},
+    {orientation:'h', offset:maxY + padY, start:minX, segments:[maxX - minX]},
+    {orientation:'v', offset:minX - padX, start:minY, segments:[maxY - minY]},
+    {orientation:'v', offset:maxX + padX, start:minY, segments:[maxY - minY]}
+  ];
 }
 
 const STORE = 'huxing-design-v1';
 function load(){
-  try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && Array.isArray(s.furniture)) return fixState(s); } catch(e) {}
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE));
+    const hasPlan = s?.plan && ['walls','wins','doors','slides','rooms','dimensions'].some(k => Array.isArray(s.plan[k]) && s.plan[k].length);
+    if (s && Array.isArray(s.furniture) && hasPlan) return fixState(s);
+  } catch(e) {}
   return null;
 }
 function fixState(s){
-  const d = defaultState();
-  s.rooms = Object.assign(d.rooms, s.rooms || {});
-  s.demolished = s.demolished || []; s.measures = s.measures || [];
+  const d = defaultState(), p = s.plan || {};
+  const plan = {
+    walls: Array.isArray(p.walls) ? p.walls : d.plan.walls,
+    wins: Array.isArray(p.wins) ? p.wins : d.plan.wins,
+    doors: Array.isArray(p.doors) ? p.doors : d.plan.doors,
+    slides: Array.isArray(p.slides) ? p.slides : d.plan.slides,
+    rooms: Array.isArray(p.rooms) ? p.rooms : d.plan.rooms
+  };
+  s.plan = {...plan, dimensions:Array.isArray(p.dimensions) ? p.dimensions : deriveDimensions(plan)};
+  const roomDefaults = {}; s.plan.rooms.forEach(r => roomDefaults[r.id] = {name:r.name || r.id, mat:r.mat || 'wood'});
+  s.rooms = Object.assign(roomDefaults, s.rooms || {});
+  s.demolished = Array.isArray(s.demolished) ? s.demolished : [];
+  s.measures = Array.isArray(s.measures) ? s.measures : [];
   return s;
 }
 
@@ -519,6 +449,11 @@ const svg = $('#plan');
 
 /* ======================= 状态 / 历史 / 存储 ======================= */
 let state = load() || defaultState();
+let WALLS = [], WINS = [], DOORS = [], SLIDES = [], ROOMS = [];
+function syncPlanRefs(){
+  WALLS = state.plan.walls; WINS = state.plan.wins; DOORS = state.plan.doors; SLIDES = state.plan.slides; ROOMS = state.plan.rooms;
+}
+syncPlanRefs();
 const ui = {tool:'select', sel:null, mA:null, mCur:null,
   layers:{dims:true, labels:true, furn:true, grid:false, bearing:false, wallSnap:true}};
 let view = {x0:0, y0:0, s:.06};
@@ -528,8 +463,8 @@ function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } cat
 const snap = () => JSON.stringify(state);
 function commit(before){ undoStack.push(before); if (undoStack.length > 150) undoStack.shift(); redoStack.length = 0; save(); }
 function mutate(fn){ const b = snap(); fn(); commit(b); renderAll(); }
-function undo(){ if (!undoStack.length) return toast('没有可撤销的操作'); redoStack.push(snap()); state = JSON.parse(undoStack.pop()); validateSel(); save(); renderAll(); }
-function redo(){ if (!redoStack.length) return; undoStack.push(snap()); state = JSON.parse(redoStack.pop()); validateSel(); save(); renderAll(); }
+function undo(){ if (!undoStack.length) return toast('没有可撤销的操作'); redoStack.push(snap()); state = JSON.parse(undoStack.pop()); syncPlanRefs(); renderOpenings(); validateSel(); save(); renderAll(); }
+function redo(){ if (!redoStack.length) return; undoStack.push(snap()); state = JSON.parse(redoStack.pop()); syncPlanRefs(); renderOpenings(); validateSel(); save(); renderAll(); }
 function validateSel(){ if (ui.sel?.kind==='furn' && !getF(ui.sel.id)) ui.sel = null; }
 const getF = id => state.furniture.find(f => f.id === id);
 
@@ -731,9 +666,6 @@ function renderOpenings(){
     if (v){ const L = y1-y0, m = (x0+x1)/2; s += `<rect x="${m-45}" y="${y0}" width="40" height="${L*.55}" fill="#fff" ${DS}/><rect x="${m+5}" y="${y1-L*.55}" width="40" height="${L*.55}" fill="#fff" ${DS}/>`; }
     else { const L = x1-x0, m = (y0+y1)/2; s += `<rect x="${x0}" y="${m-45}" width="${L*.55}" height="40" fill="#fff" ${DS}/><rect x="${x1-L*.55}" y="${m+5}" width="${L*.55}" height="40" fill="#fff" ${DS}/>`; }
   });
-  // 入户标识
-  s += `<path d="M3350 8755H4350M4150 8600L4400 8755L4150 8910" fill="none" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke"/>
-        <text x="3380" y="8600" font-size="200" fill="#b5653a">入户</text>`;
   $('#gOpen').innerHTML = s;
 }
 
@@ -749,23 +681,23 @@ function renderLabels(){
 
 function renderDims(){
   const DC = '#7d7160', LS = `stroke="${DC}" stroke-width="1" vector-effect="non-scaling-stroke"`, TK = `stroke="${DC}" stroke-width="2" vector-effect="non-scaling-stroke"`;
-  const txt = (x,y,v,rot) => `<text x="${x}" y="${y}" font-size="${v<400?140:200}" text-anchor="middle" fill="${DC}" ${rot?`transform="rotate(-90 ${x} ${y})"`:''}>${v}</text>`;
+  const txt = (x,y,v,rot) => `<text x="${x}" y="${y}" font-size="${v<400?140:200}" text-anchor="middle" fill="${DC}" ${rot?`transform="rotate(-90 ${x} ${y})"`:''}>${Math.round(v)}</text>`;
   const chain = (horiz, at, start, segs) => {
-    const pts = [start]; segs.forEach(v => pts.push(pts[pts.length-1]+v));
+    const pts = [start]; segs.forEach(v => pts.push(pts[pts.length-1] + v));
     let s = horiz ? `<line x1="${pts[0]}" y1="${at}" x2="${pts.at(-1)}" y2="${at}" ${LS}/>` : `<line x1="${at}" y1="${pts[0]}" x2="${at}" y2="${pts.at(-1)}" ${LS}/>`;
     pts.forEach(p => s += horiz
       ? `<line x1="${p}" y1="${at-170}" x2="${p}" y2="${at+170}" ${LS}/><line x1="${p-80}" y1="${at+80}" x2="${p+80}" y2="${at-80}" ${TK}/>`
       : `<line x1="${at-170}" y1="${p}" x2="${at+170}" y2="${p}" ${LS}/><line x1="${at-80}" y1="${p+80}" x2="${at+80}" y2="${p-80}" ${TK}/>`);
-    segs.forEach((v,i) => { const mid = (pts[i]+pts[i+1])/2; s += horiz ? txt(mid, at-70, v) : txt(at-70, mid, v, true); });
+    segs.forEach((v,i) => { const mid = (pts[i] + pts[i+1]) / 2; s += horiz ? txt(mid, at-70, v) : txt(at-70, mid, v, true); });
     return s;
   };
-  const g = $('#gDims');
-  g.innerHTML =
-    chain(true,-750,0,[1580,240,2760,240,1540,240,3670]) + chain(true,-1250,0,[10270]) +
-    chain(true,11350,0,[2180,240,2160,240,5450,240,1340]) + chain(true,11850,0,[11850]) +
-    chain(false,-800,0,[3370,1580,240,2770,240,2360]) + chain(false,-1300,0,[10560]) +
-    chain(false,12750,0,[3370,240,2760,240,3950]) + chain(false,13250,0,[10560]);
-  g.setAttribute('display', ui.layers.dims ? 'inline' : 'none');
+  const g = $('#gDims'), dims = state.plan.dimensions || [];
+  g.innerHTML = dims.map(d => {
+    const segs = Array.isArray(d.segments) ? d.segments.filter(Number.isFinite) : [];
+    if (!segs.length || !Number.isFinite(d.offset) || !Number.isFinite(d.start)) return '';
+    return chain(d.orientation !== 'v', d.offset, d.start, segs);
+  }).join('');
+  g.setAttribute('display', ui.layers.dims && g.innerHTML ? 'inline' : 'none');
 }
 
 function renderGrid(){
@@ -817,7 +749,7 @@ function renderSel(){
 }
 
 function renderAll(){
-  renderGrid(); renderRooms(); renderFurn(); renderWalls(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
+  renderGrid(); renderRooms(); renderFurn(); renderWalls(); renderDims(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
   window.View3D?.sync();
 }
 
@@ -1418,12 +1350,12 @@ $('#importJson').onclick = () => $('#fileIn').click();
 $('#fileIn').onchange = e => {
   const file = e.target.files[0]; if (!file) return;
   file.text().then(txt => {
-    try { const s = JSON.parse(txt); if (!Array.isArray(s.furniture)) throw 0; const b = snap(); state = fixState(s); ui.sel = null; commit(b); renderAll(); toast('方案已导入'); }
+    try { const s = JSON.parse(txt); if (!Array.isArray(s.furniture)) throw 0; const b = snap(); state = fixState(s); syncPlanRefs(); renderOpenings(); ui.sel = null; commit(b); renderAll(); toast('方案已导入'); }
     catch(err){ toast('文件格式不正确'); }
   });
   e.target.value = '';
 };
-$('#reset').onclick = () => { if (confirm('恢复为默认设计方案？（可撤销）')){ const b = snap(); state = defaultState(); ui.sel = null; commit(b); renderAll(); } };
+$('#reset').onclick = () => { if (confirm('恢复为示例方案？（可撤销）')){ const b = snap(); state = defaultState(); syncPlanRefs(); renderOpenings(); ui.sel = null; commit(b); renderAll(); } };
 // 横竖屏切换、表头换行等都会改变画布尺寸；尺寸从 0 恢复（如首次布局）时重新适应窗口
 // 其余尺寸变化（收起 / 展开面板等）保持画面中心不动
 let lastW = 0, lastH = 0;
@@ -1436,7 +1368,7 @@ new ResizeObserver(() => {
 
 
 syncFullscreen();
-buildDefs(); buildLib(); renderOpenings(); renderDims();
+buildDefs(); buildLib(); renderOpenings();
 $('#tip').textContent = TIPS()['2d'];
 fitView(); renderAll();
 </script>
@@ -2247,7 +2179,7 @@ function buildArch(){
     colliders.push([wx(w[0]), wz(w[1]), wx(w[2]), wz(w[3])]);
   });
   // 门洞、飘窗洞口上方过梁
-  [...DOORS.map(d => [d.rect, 2.1]), ...SLIDES.map(s => [s.rect, s.v ? 2.4 : 2.1]), [[10270,800,10510,2600], 2.4], [[10270,4260,10510,5740], 2.4]]
+  [...DOORS.map(d => [d.rect, 2.1]), ...SLIDES.map(s => [s.rect, s.v ? 2.4 : 2.1])]
     .forEach(([r, h]) => { if (top > h) wallBox(r, h, top); });
   WINS.forEach((r, i) => {
     const sill = i === 0 ? 1.4 : i >= 6 ? .45 : .9, head = 2.4;
@@ -2310,7 +2242,7 @@ function buildLabels(){
 // 只重建变化的部分
 function sync(force){
   if (!inited || (!active && !force)) return;
-  const a = JSON.stringify([state.rooms, state.demolished, opt.cut]), f = JSON.stringify(state.furniture), l = JSON.stringify([state.rooms, opt.cut]);
+  const a = JSON.stringify([state.plan, state.rooms, state.demolished, opt.cut]), f = JSON.stringify(state.furniture), l = JSON.stringify([state.plan.rooms, state.rooms, opt.cut]);
   if (force || a !== sigArch){ sigArch = a; buildArch(); }
   if (force || f !== sigFurn){ sigFurn = f; buildFurn(); }
   if (force || l !== sigLabels){ sigLabels = l; buildLabels(); }
@@ -2506,7 +2438,15 @@ function setMode(m){
     window.select(null);
     if (opt.cut < H){ opt.cut = H; syncCutBtns(); sync(); }
     orbit.enabled = false; fly = null;
-    camera.position.set(wx(4200), 1.6, wz(8755)); camera.lookAt(wx(7000), 1.5, wz(8755));   // 入户门外
+    const entry = DOORS.find(d => d.entry) || DOORS[0];
+    if (entry){
+      const [x0,y0,x1,y1] = entry.rect, cx = (x0+x1)/2, cy = (y0+y1)/2;
+      const dx = entry.o?.[0] || 1, dy = entry.o?.[1] || 0;
+      camera.position.set(wx(cx - dx*2200), 1.6, wz(cy - dy*2200));
+      camera.lookAt(wx(cx + dx*3000), 1.5, wz(cy + dy*3000));
+    } else {
+      camera.position.set(0, 1.6, 0); camera.lookAt(0, 1.5, -3);
+    }
     $('#walkOverlay').style.display = 'flex';
     syncHint3d();
   } else {
