@@ -2,7 +2,7 @@
 
 中文 | [English](README.en.md)
 
-纯前端的户型装修设计工具：在 2D 平面图上摆放家具、拆改墙体、测量尺寸，一键切换到 Three.js 3D 场景，可以鸟瞰，也可以第一人称漫游。整个应用就是一个 `index.html`，无需构建，打开即用。
+纯前端的户型装修设计工具：在 2D 平面图上摆放家具、拆改墙体、测量尺寸，一键切换到 Three.js 3D 场景，可以鸟瞰，也可以第一人称漫游。项目采用无构建步骤的静态目录结构，打开 `index.html` 即可使用。
 
 ## 功能
 
@@ -42,7 +42,28 @@ python3 -m http.server 8000
 # 访问 http://localhost:8000
 ```
 
-> Three.js 通过 jsDelivr CDN 加载，首次打开 3D 场景需要联网。
+> Three.js 核心库和 `examples/jsm` addon 已本地化到 `assets/lib/three/`，无需依赖 CDN。
+
+## 目录结构
+
+```text
+.
+├── index.html                 # 页面入口与语义化布局
+├── assets/
+│   ├── css/
+│   │   └── main.css            # 全局样式与响应式布局
+│   ├── js/
+│   │   ├── app.js              # 2D 编辑器、状态、家具库与交互
+│   │   └── scene3d.js          # Three.js 3D 场景与漫游
+│   ├── json/                   # 家具库、材料等静态数据资源
+│   ├── images/                 # 预留：纹理、图标、预览图
+│   ├── fonts/                  # 预留：本地字体
+│   └── lib/                    # 预留：第三方库本地副本说明
+├── README.md
+└── LICENSE
+```
+
+当前仍然保持“无需构建、直接部署”的使用方式。Three.js `0.160.0` 通过 `index.html` 中的 import map 从 `assets/lib/three/` 加载，完整 `examples/jsm` 目录也已随项目分发。
 
 ## 快捷键
 
@@ -70,12 +91,11 @@ python3 -m http.server 8000
 
 ## 自定义户型
 
-户型数据写在 `index.html` 里：
+为保持拆分后的职责边界，家具库和地面材料已迁移到 `assets/json/`，后续可继续按资源类型拆分：
 
-- `ROOMS`：房间多边形、名称、默认地面材料
-- `WALLS` / `WINS`：墙体与窗洞
-- `MATS`：地面材料名称与单价
-- `LIB`：家具库（类型、名称、默认尺寸、颜色）
+- `assets/json/furniture.json`：家具分类、类型、名称、默认尺寸和颜色
+- `assets/json/materials.json`：地面材料名称、单价和色板
+- `WALLS` / `WINS`：墙体与窗洞，仍由户型初始化逻辑维护
 - `buildFurniture()`：各类家具的 3D 模型
 
 改这些数据就能换成自己的户型。

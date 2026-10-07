@@ -1,0 +1,452 @@
+[
+  {
+    "category": "卧室",
+    "items": [
+      {
+        "type": "bed",
+        "name": "双人床 1.8m",
+        "width": 1800,
+        "depth": 2000,
+        "color": "#c9d6df"
+      },
+      {
+        "type": "bed",
+        "name": "双人床 1.5m",
+        "width": 1500,
+        "depth": 2000,
+        "color": "#d8c7dc"
+      },
+      {
+        "type": "bed",
+        "name": "单人床",
+        "width": 1200,
+        "depth": 2000,
+        "color": "#e8d5b5"
+      },
+      {
+        "type": "crib",
+        "name": "婴儿床",
+        "width": 1250,
+        "depth": 700,
+        "color": "#efe3d0"
+      },
+      {
+        "type": "nightstand",
+        "name": "床头柜",
+        "width": 450,
+        "depth": 400,
+        "color": "#e8dccb"
+      },
+      {
+        "type": "wardrobe",
+        "name": "衣柜",
+        "width": 2000,
+        "depth": 600,
+        "color": "#efe6d8"
+      },
+      {
+        "type": "wardrobe",
+        "name": "小衣柜",
+        "width": 1200,
+        "depth": 550,
+        "color": "#efe6d8"
+      },
+      {
+        "type": "dresser",
+        "name": "梳妆台",
+        "width": 1000,
+        "depth": 450,
+        "color": "#efe6d8"
+      },
+      {
+        "type": "desk",
+        "name": "书桌",
+        "width": 1200,
+        "depth": 600,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "chair",
+        "name": "椅子",
+        "width": 450,
+        "depth": 480,
+        "color": "#cfc6b8"
+      },
+      {
+        "type": "bookshelf",
+        "name": "书架",
+        "width": 800,
+        "depth": 300,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "baycushion",
+        "name": "飘窗垫",
+        "width": 520,
+        "depth": 1800,
+        "color": "#e7dccd"
+      }
+    ]
+  },
+  {
+    "category": "客厅",
+    "items": [
+      {
+        "type": "sofa",
+        "name": "三人沙发",
+        "width": 2400,
+        "depth": 900,
+        "color": "#b7c4b0"
+      },
+      {
+        "type": "sofa",
+        "name": "双人沙发",
+        "width": 1700,
+        "depth": 880,
+        "color": "#c3cbd6"
+      },
+      {
+        "type": "cornersofa",
+        "name": "转角沙发",
+        "width": 2800,
+        "depth": 1700,
+        "color": "#b7c4b0"
+      },
+      {
+        "type": "armchair",
+        "name": "单人沙发",
+        "width": 850,
+        "depth": 850,
+        "color": "#d6b99a"
+      },
+      {
+        "type": "beanbag",
+        "name": "懒人沙发",
+        "width": 800,
+        "depth": 800,
+        "color": "#e0b98f"
+      },
+      {
+        "type": "coffeetable",
+        "name": "茶几",
+        "width": 1300,
+        "depth": 650,
+        "color": "#e8dccb"
+      },
+      {
+        "type": "sidetable",
+        "name": "边几",
+        "width": 500,
+        "depth": 500,
+        "color": "#d9c3a3"
+      },
+      {
+        "type": "tvstand",
+        "name": "电视柜",
+        "width": 2400,
+        "depth": 400,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "rug",
+        "name": "地毯",
+        "width": 2400,
+        "depth": 1700,
+        "color": "#d9cbb8"
+      },
+      {
+        "type": "shoecab",
+        "name": "鞋柜",
+        "width": 1000,
+        "depth": 350,
+        "color": "#efe6d8"
+      },
+      {
+        "type": "shoecab",
+        "name": "玄关柜",
+        "width": 1400,
+        "depth": 380,
+        "color": "#e6dccc"
+      },
+      {
+        "type": "floorlamp",
+        "name": "落地灯",
+        "width": 450,
+        "depth": 450,
+        "color": "#3d3a34"
+      },
+      {
+        "type": "plant",
+        "name": "绿植",
+        "width": 500,
+        "depth": 500,
+        "color": "#a9c39b"
+      },
+      {
+        "type": "plant",
+        "name": "大绿植",
+        "width": 700,
+        "depth": 700,
+        "color": "#9dbb8c"
+      }
+    ]
+  },
+  {
+    "category": "餐厨",
+    "items": [
+      {
+        "type": "table",
+        "name": "餐桌",
+        "width": 1400,
+        "depth": 800,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "table",
+        "name": "六人餐桌",
+        "width": 1800,
+        "depth": 900,
+        "color": "#d8c2a2"
+      },
+      {
+        "type": "roundtable",
+        "name": "圆桌",
+        "width": 1000,
+        "depth": 1000,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "chair",
+        "name": "餐椅",
+        "width": 450,
+        "depth": 480,
+        "color": "#cfc6b8"
+      },
+      {
+        "type": "island",
+        "name": "岛台",
+        "width": 1800,
+        "depth": 900,
+        "color": "#e9e5de"
+      },
+      {
+        "type": "barstool",
+        "name": "吧椅",
+        "width": 420,
+        "depth": 420,
+        "color": "#6b5d4c"
+      },
+      {
+        "type": "counter",
+        "name": "橱柜台面",
+        "width": 1600,
+        "depth": 600,
+        "color": "#e9e5de"
+      },
+      {
+        "type": "stove",
+        "name": "燃气灶",
+        "width": 750,
+        "depth": 450,
+        "color": "#dcdcdc"
+      },
+      {
+        "type": "ksink",
+        "name": "水槽",
+        "width": 800,
+        "depth": 450,
+        "color": "#e1e6ea"
+      },
+      {
+        "type": "fridge",
+        "name": "冰箱",
+        "width": 700,
+        "depth": 700,
+        "color": "#dfe4e8"
+      },
+      {
+        "type": "cabinet",
+        "name": "餐边柜",
+        "width": 1600,
+        "depth": 400,
+        "color": "#efe6d8"
+      }
+    ]
+  },
+  {
+    "category": "卫浴",
+    "items": [
+      {
+        "type": "toilet",
+        "name": "马桶",
+        "width": 400,
+        "depth": 700,
+        "color": "#ffffff"
+      },
+      {
+        "type": "vanity",
+        "name": "浴室柜",
+        "width": 800,
+        "depth": 500,
+        "color": "#eef1f3"
+      },
+      {
+        "type": "vanity",
+        "name": "双盆浴室柜",
+        "width": 1200,
+        "depth": 500,
+        "color": "#eef1f3"
+      },
+      {
+        "type": "shower",
+        "name": "淋浴房",
+        "width": 900,
+        "depth": 900,
+        "color": "#e4edf2"
+      },
+      {
+        "type": "bathtub",
+        "name": "浴缸",
+        "width": 1600,
+        "depth": 750,
+        "color": "#eef3f6"
+      },
+      {
+        "type": "washer",
+        "name": "洗衣机",
+        "width": 600,
+        "depth": 600,
+        "color": "#e6ebee"
+      },
+      {
+        "type": "waterheater",
+        "name": "电热水器",
+        "width": 800,
+        "depth": 450,
+        "color": "#f4f4f2"
+      },
+      {
+        "type": "cabinet",
+        "name": "储物柜",
+        "width": 1000,
+        "depth": 400,
+        "color": "#efe6d8"
+      }
+    ]
+  },
+  {
+    "category": "家电",
+    "items": [
+      {
+        "type": "tv",
+        "name": "65 寸电视",
+        "width": 1450,
+        "depth": 80,
+        "color": "#1d1d1f"
+      },
+      {
+        "type": "tv",
+        "name": "55 寸电视",
+        "width": 1230,
+        "depth": 80,
+        "color": "#1d1d1f"
+      },
+      {
+        "type": "fridge",
+        "name": "对开门冰箱",
+        "width": 910,
+        "depth": 700,
+        "color": "#c9ced3"
+      },
+      {
+        "type": "aircon",
+        "name": "柜机空调",
+        "width": 500,
+        "depth": 380,
+        "color": "#f6f7f8"
+      },
+      {
+        "type": "acwall",
+        "name": "挂机空调",
+        "width": 900,
+        "depth": 250,
+        "color": "#f6f7f8"
+      },
+      {
+        "type": "dishwasher",
+        "name": "洗碗机",
+        "width": 600,
+        "depth": 600,
+        "color": "#c9ced3"
+      },
+      {
+        "type": "ovencol",
+        "name": "蒸烤箱高柜",
+        "width": 600,
+        "depth": 600,
+        "color": "#efe6d8"
+      },
+      {
+        "type": "dryer",
+        "name": "烘干机",
+        "width": 600,
+        "depth": 600,
+        "color": "#e6ebee"
+      },
+      {
+        "type": "purifier",
+        "name": "空气净化器",
+        "width": 400,
+        "depth": 300,
+        "color": "#f4f4f2"
+      }
+    ]
+  },
+  {
+    "category": "书房 · 休闲",
+    "items": [
+      {
+        "type": "desk",
+        "name": "长书桌",
+        "width": 1600,
+        "depth": 700,
+        "color": "#d8c2a2"
+      },
+      {
+        "type": "officechair",
+        "name": "办公椅",
+        "width": 620,
+        "depth": 620,
+        "color": "#4a4f55"
+      },
+      {
+        "type": "bookshelf",
+        "name": "大书架",
+        "width": 1600,
+        "depth": 350,
+        "color": "#e2cfb4"
+      },
+      {
+        "type": "piano",
+        "name": "立式钢琴",
+        "width": 1500,
+        "depth": 600,
+        "color": "#1f1d1b"
+      },
+      {
+        "type": "treadmill",
+        "name": "跑步机",
+        "width": 800,
+        "depth": 1800,
+        "color": "#3a3a3c"
+      },
+      {
+        "type": "armchair",
+        "name": "阅读椅",
+        "width": 750,
+        "depth": 800,
+        "color": "#c9a98a"
+      }
+    ]
+  }
+]
