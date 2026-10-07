@@ -109,56 +109,97 @@ function screenToPlan(event) {
 }
 
 function snappingEnabled() {
-  return ui.layers.wallSnap !== false;
+  const button = document.querySelector('[data-layer="wallSnap"]');
+  return button ? button.classList.contains('on') : ui.layers.wallSnap !== false;
 }
 
-function pushRectSnapCandidates(candidates, rect) {
-  if (!Array.isArray(rect) || rect.length < 4) return;
-  const [x0, y0, x1, y1] = rect;
-  const centerX = (x0 + x1) / 2;
-  const centerY = (y0 + y1) / 2;
-  candidates.push(
-    [x0, y0], [x1, y0], [x0, y1], [x1, y1],
-    [centerX, y0], [centerX, y1], [x0, centerY], [x1, centerY]
-  );
+function planSnapRects() {
+  return [
+    ...WALLS,
+    ...WINS,
+    ...DOORS.map(door => door.rect),
+    ...SLIDES.map(slide => slide.rect)
+  ];
+}
+
+function nearestSnapValue(current, candidate, best) {
+  const distance = Math.abs(candidate - current);
+  return distance <= best.distance
+    ? {value: candidate, distance}
+    : best;
+}
+
+function entitySnapTarget(point, tolerance) {
+  let bestX = {value: null, distance: tolerance};
+  let bestY = {value: null, distance: tolerance};
+  planSnapRects().forEach(rect => {
+    if (!Array.isArray(rect) || rect.length < 4) return;
+    const [x0, y0, x1, y1] = rect;
+    const centerX = (x0 + x1) / 2;
+    const centerY = (y0 + y1) / 2;
+    const withinY = point.y >= y0 - tolerance && point.y <= y1 + tolerance;
+    const withinX = point.x >= x0 - tolerance && point.x <= x1 + tolerance;
+    if (withinY) {
+      [x0, centerX, x1].forEach(anchor => {
+        bestX = nearestSnapValue(point.x, anchor, bestX);
+      });
+    }
+    if (withinX) {
+      [y0, centerY, y1].forEach(anchor => {
+        bestY = nearestSnapValue(point.y, anchor, bestY);
+      });
+    }
+  });
+  ROOMS.forEach(room => room.poly.forEach(([x, y]) => {
+    bestX = nearestSnapValue(point.x, x, bestX);
+    bestY = nearestSnapValue(point.y, y, bestY);
+  }));
+  return {x: bestX.value, y: bestY.value};
+}
+
+function roomEdgeSnapTarget(point, tolerance) {
+  let bestX = {value: null, distance: tolerance};
+  let bestY = {value: null, distance: tolerance};
+  ROOMS.forEach(room => {
+    room.poly.forEach((start, index) => {
+      const end = room.poly[(index + 1) % room.poly.length];
+      if (Math.abs(start[1] - end[1]) <= 1
+        && point.x >= Math.min(start[0], end[0]) - tolerance
+        && point.x <= Math.max(start[0], end[0]) + tolerance) {
+        bestY = nearestSnapValue(point.y, start[1], bestY);
+      }
+      if (Math.abs(start[0] - end[0]) <= 1
+        && point.y >= Math.min(start[1], end[1]) - tolerance
+        && point.y <= Math.max(start[1], end[1]) + tolerance) {
+        bestX = nearestSnapValue(point.x, start[0], bestX);
+      }
+    });
+  });
+  return {x: bestX.value, y: bestY.value};
 }
 
 function rawSnap(point, snapTolerance = PLAN_RULES.snapTolerance) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y};
+  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
   const step = PLAN_RULES.grid;
   const tolerance = snapTolerance / Math.max(view.s, 0.001);
-  let x = Math.round(point.x / step) * step;
-  let y = Math.round(point.y / step) * step;
-  let closestX = tolerance;
-  let closestY = tolerance;
-  const candidates = [];
-  WALLS.forEach(wall => pushRectSnapCandidates(candidates, wall));
-  WINS.forEach(win => pushRectSnapCandidates(candidates, win));
-  DOORS.forEach(door => pushRectSnapCandidates(candidates, door.rect));
-  SLIDES.forEach(slide => pushRectSnapCandidates(candidates, slide.rect));
-  ROOMS.forEach(room => room.poly.forEach(pointValue => candidates.push(pointValue)));
-  candidates.forEach(([candidateX, candidateY]) => {
-    const distanceX = Math.abs(candidateX - point.x);
-    const distanceY = Math.abs(candidateY - point.y);
-    if (distanceX <= closestX) {
-      closestX = distanceX;
-      x = candidateX;
-    }
-    if (distanceY <= closestY) {
-      closestY = distanceY;
-      y = candidateY;
-    }
-  });
-  return {x, y};
+  const entityTarget = entitySnapTarget(point, tolerance);
+  const roomTarget = roomEdgeSnapTarget(point, tolerance);
+  const next = {
+    x: entityTarget.x ?? roomTarget.x ?? Math.round(point.x / step) * step,
+    y: entityTarget.y ?? roomTarget.y ?? Math.round(point.y / step) * step,
+    snapX: entityTarget.x !== null || roomTarget.x !== null,
+    snapY: entityTarget.y !== null || roomTarget.y !== null
+  };
+  return next;
 }
 
 function snapRoomPoint(point, previous, {
   snapTolerance = PLAN_RULES.snapTolerance,
   orthogonalAngle = PLAN_RULES.orthogonalAngle
 } = {}) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y};
+  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
   const next = rawSnap(point, snapTolerance);
-  if (!previous) return next;
+  if (!previous || next.snapX || next.snapY) return next;
   const dx = Math.abs(next.x - previous.x);
   const dy = Math.abs(next.y - previous.y);
   const angle = orthogonalAngle * Math.PI / 180;
@@ -190,10 +231,12 @@ function snapGuideMarkup() {
 }
 
 function snapOrthogonal(point, start) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y};
+  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
   const next = rawSnap(point);
   if (!start) return next;
-  if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
+  if (next.snapX && !next.snapY) next.y = start.y;
+  else if (!next.snapX && next.snapY) next.x = start.x;
+  else if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
   else next.x = start.x;
   return next;
 }
