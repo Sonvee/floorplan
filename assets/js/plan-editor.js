@@ -109,97 +109,117 @@ function screenToPlan(event) {
 }
 
 function snappingEnabled() {
-  const button = document.querySelector('[data-layer="wallSnap"]');
-  return button ? button.classList.contains('on') : ui.layers.wallSnap !== false;
+  return ui.layers.wallSnap !== false;
 }
 
-function planSnapRects() {
-  return [
-    ...WALLS,
-    ...WINS,
-    ...DOORS.map(door => door.rect),
-    ...SLIDES.map(slide => slide.rect)
-  ];
-}
-
-function nearestSnapValue(current, candidate, best) {
-  const distance = Math.abs(candidate - current);
-  return distance <= best.distance
-    ? {value: candidate, distance}
-    : best;
-}
-
-function entitySnapTarget(point, tolerance) {
-  let bestX = {value: null, distance: tolerance};
-  let bestY = {value: null, distance: tolerance};
-  planSnapRects().forEach(rect => {
-    if (!Array.isArray(rect) || rect.length < 4) return;
+/**
+ * 收集户型实体可用于吸附的线段和关键点。
+ * 线段只负责“沿线投影”，关键点负责端点、中心点和交点的精确吸附。
+ * @param {{kind?: string, index?: number}|null} exclude 不参与吸附的当前编辑对象
+ * @returns {{segments: Array, points: Array}}
+ */
+function planSnapSegments(exclude = null) {
+  const segments = [];
+  const points = [];
+  const isExcluded = owner => owner?.kind === exclude?.kind && owner?.index === exclude?.index;
+  const addPoint = (x, y, owner) => points.push({x, y, owner});
+  const addSegment = (x0, y0, x1, y1, axis = 'free', owner) => {
+    segments.push({a: {x: x0, y: y0}, b: {x: x1, y: y1}, axis, owner});
+  };
+  const addRect = (rect, owner) => {
+    if (!Array.isArray(rect) || rect.length < 4 || isExcluded(owner)) return;
     const [x0, y0, x1, y1] = rect;
     const centerX = (x0 + x1) / 2;
     const centerY = (y0 + y1) / 2;
-    const withinY = point.y >= y0 - tolerance && point.y <= y1 + tolerance;
-    const withinX = point.x >= x0 - tolerance && point.x <= x1 + tolerance;
-    if (withinY) {
-      [x0, centerX, x1].forEach(anchor => {
-        bestX = nearestSnapValue(point.x, anchor, bestX);
-      });
-    }
-    if (withinX) {
-      [y0, centerY, y1].forEach(anchor => {
-        bestY = nearestSnapValue(point.y, anchor, bestY);
-      });
-    }
-  });
-  ROOMS.forEach(room => room.poly.forEach(([x, y]) => {
-    bestX = nearestSnapValue(point.x, x, bestX);
-    bestY = nearestSnapValue(point.y, y, bestY);
-  }));
-  return {x: bestX.value, y: bestY.value};
-}
+    [[x0, y0], [x1, y0], [x1, y1], [x0, y1],
+      [centerX, y0], [x1, centerY], [centerX, y1], [x0, centerY], [centerX, centerY]]
+      .forEach(([x, y]) => addPoint(x, y, owner));
+    addSegment(x0, y0, x1, y0, 'h', owner);
+    addSegment(x1, y0, x1, y1, 'v', owner);
+    addSegment(x1, y1, x0, y1, 'h', owner);
+    addSegment(x0, y1, x0, y0, 'v', owner);
+    addSegment(x0, centerY, x1, centerY, 'h', owner);
+    addSegment(centerX, y0, centerX, y1, 'v', owner);
+  };
 
-function roomEdgeSnapTarget(point, tolerance) {
-  let bestX = {value: null, distance: tolerance};
-  let bestY = {value: null, distance: tolerance};
-  ROOMS.forEach(room => {
+  WALLS.forEach((wall, index) => {
+    if (!state.demolished.includes(`w${index}`)) addRect(wall, {kind: 'wall', index});
+  });
+  WINS.forEach((win, index) => addRect(win, {kind: 'window', index}));
+  DOORS.forEach((door, index) => addRect(door.rect, {kind: 'door', index}));
+  SLIDES.forEach((slide, index) => addRect(slide.rect, {kind: 'slide', index}));
+  ROOMS.forEach((room, roomIndex) => {
+    const owner = {kind: 'room', index: roomIndex};
+    if (isExcluded(owner)) return;
     room.poly.forEach((start, index) => {
       const end = room.poly[(index + 1) % room.poly.length];
-      if (Math.abs(start[1] - end[1]) <= 1
-        && point.x >= Math.min(start[0], end[0]) - tolerance
-        && point.x <= Math.max(start[0], end[0]) + tolerance) {
-        bestY = nearestSnapValue(point.y, start[1], bestY);
-      }
-      if (Math.abs(start[0] - end[0]) <= 1
-        && point.y >= Math.min(start[1], end[1]) - tolerance
-        && point.y <= Math.max(start[1], end[1]) + tolerance) {
-        bestX = nearestSnapValue(point.x, start[0], bestX);
-      }
+      addPoint(start[0], start[1], owner);
+      const axis = Math.abs(start[1] - end[1]) <= 1
+        ? 'h'
+        : Math.abs(start[0] - end[0]) <= 1 ? 'v' : 'free';
+      addSegment(start[0], start[1], end[0], end[1], axis, owner);
     });
   });
-  return {x: bestX.value, y: bestY.value};
+  return {segments, points};
 }
 
-function rawSnap(point, snapTolerance = PLAN_RULES.snapTolerance) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
-  const step = PLAN_RULES.grid;
+function closestPointOnSegment(point, segment) {
+  const dx = segment.b.x - segment.a.x;
+  const dy = segment.b.y - segment.a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (!lengthSquared) return {...segment.a};
+  const ratio = Math.max(0, Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / lengthSquared));
+  return {x: segment.a.x + dx * ratio, y: segment.a.y + dy * ratio};
+}
+
+/**
+ * 在实体关键点和边线上寻找最近吸附目标。
+ * @param {{x: number, y: number}} point 当前鼠标对应的户型坐标
+ * @param {number} tolerance 户型坐标中的吸附容差
+ * @param {{kind?: string, index?: number}|null} exclude 当前编辑对象
+ * @returns {{x: number, y: number, distance: number, axis: string, kind: string}|null}
+ */
+function geometrySnap(point, tolerance, exclude = null) {
+  const geometry = planSnapSegments(exclude);
+  let closest = null;
+  geometry.points.forEach(target => {
+    const distance = Math.hypot(target.x - point.x, target.y - point.y);
+    if (distance <= tolerance && (!closest || distance < closest.distance)) {
+      closest = {x: target.x, y: target.y, distance, axis: 'point', kind: 'point'};
+    }
+  });
+  if (closest) return closest;
+  geometry.segments.forEach(segment => {
+    const candidate = closestPointOnSegment(point, segment);
+    const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y);
+    if (distance <= tolerance && (!closest || distance < closest.distance)) {
+      closest = {...candidate, distance, axis: segment.axis, kind: 'segment'};
+    }
+  });
+  return closest;
+}
+
+function rawSnap(point, snapTolerance = PLAN_RULES.snapTolerance, exclude = null) {
+  if (!snappingEnabled()) return {x: point.x, y: point.y, geometry: null};
   const tolerance = snapTolerance / Math.max(view.s, 0.001);
-  const entityTarget = entitySnapTarget(point, tolerance);
-  const roomTarget = roomEdgeSnapTarget(point, tolerance);
-  const next = {
-    x: entityTarget.x ?? roomTarget.x ?? Math.round(point.x / step) * step,
-    y: entityTarget.y ?? roomTarget.y ?? Math.round(point.y / step) * step,
-    snapX: entityTarget.x !== null || roomTarget.x !== null,
-    snapY: entityTarget.y !== null || roomTarget.y !== null
+  const geometry = geometrySnap(point, tolerance, exclude);
+  if (geometry) return {x: geometry.x, y: geometry.y, geometry};
+  const step = PLAN_RULES.grid;
+  return {
+    x: Math.round(point.x / step) * step,
+    y: Math.round(point.y / step) * step,
+    geometry: null
   };
-  return next;
 }
 
 function snapRoomPoint(point, previous, {
   snapTolerance = PLAN_RULES.snapTolerance,
-  orthogonalAngle = PLAN_RULES.orthogonalAngle
+  orthogonalAngle = PLAN_RULES.orthogonalAngle,
+  exclude = null
 } = {}) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
-  const next = rawSnap(point, snapTolerance);
-  if (!previous || next.snapX || next.snapY) return next;
+  if (!snappingEnabled()) return {x: point.x, y: point.y, geometry: null};
+  const next = rawSnap(point, snapTolerance, exclude);
+  if (!previous || next.geometry) return next;
   const dx = Math.abs(next.x - previous.x);
   const dy = Math.abs(next.y - previous.y);
   const angle = orthogonalAngle * Math.PI / 180;
@@ -230,15 +250,59 @@ function snapGuideMarkup() {
   ).join('');
 }
 
-function snapOrthogonal(point, start) {
-  if (!snappingEnabled()) return {x: point.x, y: point.y, snapX: false, snapY: false};
-  const next = rawSnap(point);
-  if (!start) return next;
-  if (next.snapX && !next.snapY) next.y = start.y;
-  else if (!next.snapX && next.snapY) next.x = start.x;
-  else if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
+function snapOrthogonal(point, start, exclude = null) {
+  if (!snappingEnabled()) return {x: point.x, y: point.y, geometry: null};
+  const next = rawSnap(point, PLAN_RULES.snapTolerance, exclude);
+  if (!start || next.geometry) return next;
+  if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
   else next.x = start.x;
   return next;
+}
+
+function rectSnapAnchors(rect) {
+  const [x0, y0, x1, y1] = rect;
+  const centerX = (x0 + x1) / 2;
+  const centerY = (y0 + y1) / 2;
+  return [
+    {x: x0, y: y0}, {x: x1, y: y0}, {x: x1, y: y1}, {x: x0, y: y1},
+    {x: centerX, y: y0}, {x: x1, y: centerY}, {x: centerX, y: y1}, {x: x0, y: centerY},
+    {x: centerX, y: centerY}
+  ];
+}
+
+/**
+ * 将墙、窗或门整体移动到网格，并把其关键点吸附到其他户型实体。
+ * 吸附线只修正垂直于线的位移，吸附点才会同时修正 X/Y，避免实体沿墙跳动。
+ * @param {{kind: string, index: number}} target 当前实体
+ * @param {number[]} baseRect 移动前的矩形
+ * @param {{x: number, y: number}} point 当前鼠标户型坐标
+ * @param {{x: number, y: number}} anchor 开始拖拽时的鼠标户型坐标
+ * @returns {{dx: number, dy: number, guide: {x: number, y: number}|null}}
+ */
+function snapEntityTranslation(target, baseRect, point, anchor) {
+  let dx = Math.round((point.x - anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
+  let dy = Math.round((point.y - anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
+  if (!snappingEnabled()) return {dx, dy, guide: null};
+
+  const movedRect = [baseRect[0] + dx, baseRect[1] + dy, baseRect[2] + dx, baseRect[3] + dy];
+  const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
+  let best = null;
+  rectSnapAnchors(movedRect).forEach(anchorPoint => {
+    const geometry = geometrySnap(anchorPoint, tolerance, target);
+    if (!geometry) return;
+    let adjustX = geometry.x - anchorPoint.x;
+    let adjustY = geometry.y - anchorPoint.y;
+    if (geometry.kind === 'segment' && geometry.axis === 'h') adjustX = 0;
+    if (geometry.kind === 'segment' && geometry.axis === 'v') adjustY = 0;
+    const score = Math.abs(adjustX) + Math.abs(adjustY);
+    if (!best || score < best.score) {
+      best = {adjustX, adjustY, score, guide: {x: geometry.x, y: geometry.y}};
+    }
+  });
+  if (!best) return {dx, dy, guide: null};
+  dx += best.adjustX;
+  dy += best.adjustY;
+  return {dx, dy, guide: best.guide};
 }
 
 function primitiveWidth(kind, type) {
@@ -797,7 +861,8 @@ function moveSelected(point) {
     const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
     const next = snapRoomPoint(point, {x: previous[0], y: previous[1]}, {
       snapTolerance: PLAN_RULES.editSnapTolerance,
-      orthogonalAngle: PLAN_RULES.editOrthogonalAngle
+      orthogonalAngle: PLAN_RULES.editOrthogonalAngle,
+      exclude: {kind: 'room', index: drag.roomIndex}
     });
     updateSnapGuides(next);
     room.poly[drag.pointIndex] = [next.x, next.y];
@@ -806,19 +871,22 @@ function moveSelected(point) {
     renderLabels();
     drawDraft();
   } else if (drag.kind === 'entity') {
-    const dx = Math.round((point.x - drag.anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
-    const dy = Math.round((point.y - drag.anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
-    if (drag.target.kind === 'wall') {
+    const kind = drag.target.kind;
+    const baseRect = kind === 'door' ? drag.base.rect : drag.base;
+    const translation = snapEntityTranslation(drag.target, baseRect, point, drag.anchor);
+    const {dx, dy} = translation;
+    updateSnapGuides(translation.guide || {x: point.x, y: point.y});
+    if (kind === 'wall') {
       const wall = state.plan.walls[drag.target.index];
       for (let index = 0; index < 4; index++) wall[index] = drag.base[index] + (index % 2 ? dy : dx);
       syncPlanRefs();
       renderWalls();
-    } else if (drag.target.kind === 'window') {
+    } else if (kind === 'window') {
       const win = state.plan.wins[drag.target.index];
       for (let index = 0; index < 4; index++) win[index] = drag.base[index] + (index % 2 ? dy : dx);
       syncPlanRefs();
       renderOpenings();
-    } else if (drag.target.kind === 'door') {
+    } else if (kind === 'door') {
       const door = state.plan.doors[drag.target.index];
       door.rect = drag.base.rect.map((value, index) => value + (index % 2 ? dy : dx));
       updateDoorGeometry(door);
