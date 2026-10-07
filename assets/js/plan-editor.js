@@ -108,19 +108,46 @@ function screenToPlan(event) {
   return point.matrixTransform(planSvg.getScreenCTM().inverse());
 }
 
+function snappingEnabled() {
+  return ui.layers.wallSnap !== false;
+}
+
+function pushRectSnapCandidates(candidates, rect) {
+  if (!Array.isArray(rect) || rect.length < 4) return;
+  const [x0, y0, x1, y1] = rect;
+  const centerX = (x0 + x1) / 2;
+  const centerY = (y0 + y1) / 2;
+  candidates.push(
+    [x0, y0], [x1, y0], [x0, y1], [x1, y1],
+    [centerX, y0], [centerX, y1], [x0, centerY], [x1, centerY]
+  );
+}
+
 function rawSnap(point, snapTolerance = PLAN_RULES.snapTolerance) {
+  if (!snappingEnabled()) return {x: point.x, y: point.y};
   const step = PLAN_RULES.grid;
   const tolerance = snapTolerance / Math.max(view.s, 0.001);
   let x = Math.round(point.x / step) * step;
   let y = Math.round(point.y / step) * step;
+  let closestX = tolerance;
+  let closestY = tolerance;
   const candidates = [];
-  WALLS.forEach(wall => candidates.push([wall[0], wall[1]], [wall[2], wall[3]]));
-  WINS.forEach(win => candidates.push([win[0], win[1]], [win[2], win[3]]));
-  DOORS.forEach(door => candidates.push([door.rect[0], door.rect[1]], [door.rect[2], door.rect[3]]));
+  WALLS.forEach(wall => pushRectSnapCandidates(candidates, wall));
+  WINS.forEach(win => pushRectSnapCandidates(candidates, win));
+  DOORS.forEach(door => pushRectSnapCandidates(candidates, door.rect));
+  SLIDES.forEach(slide => pushRectSnapCandidates(candidates, slide.rect));
   ROOMS.forEach(room => room.poly.forEach(pointValue => candidates.push(pointValue)));
   candidates.forEach(([candidateX, candidateY]) => {
-    if (Math.abs(candidateX - point.x) <= tolerance) x = candidateX;
-    if (Math.abs(candidateY - point.y) <= tolerance) y = candidateY;
+    const distanceX = Math.abs(candidateX - point.x);
+    const distanceY = Math.abs(candidateY - point.y);
+    if (distanceX <= closestX) {
+      closestX = distanceX;
+      x = candidateX;
+    }
+    if (distanceY <= closestY) {
+      closestY = distanceY;
+      y = candidateY;
+    }
   });
   return {x, y};
 }
@@ -129,6 +156,7 @@ function snapRoomPoint(point, previous, {
   snapTolerance = PLAN_RULES.snapTolerance,
   orthogonalAngle = PLAN_RULES.orthogonalAngle
 } = {}) {
+  if (!snappingEnabled()) return {x: point.x, y: point.y};
   const next = rawSnap(point, snapTolerance);
   if (!previous) return next;
   const dx = Math.abs(next.x - previous.x);
@@ -139,8 +167,8 @@ function snapRoomPoint(point, previous, {
   return next;
 }
 
-function updateRoomSnapGuides(next) {
-  editor.guides = next ? [
+function updateSnapGuides(next) {
+  editor.guides = snappingEnabled() && next ? [
     {axis: 'h', value: next.y},
     {axis: 'v', value: next.x}
   ] : [];
@@ -162,6 +190,7 @@ function snapGuideMarkup() {
 }
 
 function snapOrthogonal(point, start) {
+  if (!snappingEnabled()) return {x: point.x, y: point.y};
   const next = rawSnap(point);
   if (!start) return next;
   if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
@@ -694,6 +723,7 @@ function finishPrimitive() {
   if (!draft.start || !draft.current) return;
   if (distance(draft.start, draft.current) < PLAN_RULES.minimumPrimitiveLength) {
     editor.draft = emptyDraft();
+    editor.guides = [];
     drawDraft();
     return;
   }
@@ -726,7 +756,7 @@ function moveSelected(point) {
       snapTolerance: PLAN_RULES.editSnapTolerance,
       orthogonalAngle: PLAN_RULES.editOrthogonalAngle
     });
-    updateRoomSnapGuides(next);
+    updateSnapGuides(next);
     room.poly[drag.pointIndex] = [next.x, next.y];
     room.at = polygonCenter(room.poly);
     renderRooms();
@@ -827,7 +857,7 @@ function onPointerDown(event) {
     const previous = editor.draft.points.at(-1);
     const next = snapRoomPoint(point, previous && {x: previous[0], y: previous[1]});
     if (!previous || distance(next, {x: previous[0], y: previous[1]}) > 20) editor.draft.points.push([next.x, next.y]);
-    updateRoomSnapGuides(next);
+    updateSnapGuides(next);
     editor.draft.current = next;
     drawDraft();
     planSvg.setPointerCapture(event.pointerId);
@@ -837,6 +867,7 @@ function onPointerDown(event) {
     const start = snapOrthogonal(point, null);
     editor.draft.start = start;
     editor.draft.current = start;
+    updateSnapGuides(start);
     drawDraft();
     planSvg.setPointerCapture(event.pointerId);
     return;
@@ -871,10 +902,11 @@ function onPointerMove(event) {
   if (editor.mode === 'room' && editor.draft.points.length) {
     const previous = editor.draft.points.at(-1);
     editor.draft.current = snapRoomPoint(point, {x: previous[0], y: previous[1]});
-    updateRoomSnapGuides(editor.draft.current);
+    updateSnapGuides(editor.draft.current);
     drawDraft();
   } else if (editor.draft.start && ['wall', 'window', 'door'].includes(editor.mode)) {
     editor.draft.current = snapOrthogonal(point, editor.draft.start);
+    updateSnapGuides(editor.draft.current);
     drawDraft();
   }
   const drag = editor.drag;
@@ -1006,6 +1038,7 @@ const PlanEditor = {
   isActive: () => editor.active,
   syncOverlay() {
     if (editor.active) {
+      if (!snappingEnabled()) editor.guides = [];
       drawDraft();
       drawSelection();
     }

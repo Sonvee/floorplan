@@ -593,7 +593,7 @@ function furnPanel(f){
       <button class="btn" id="aTop">置于顶层</button><button class="btn" id="aBot">置于底层</button>
       <button class="btn danger" id="aDel">删除</button><button class="btn" id="back">← 返回</button>
     </div></section>
-  <section class="muted" style="font-size:12px">拖动家具移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「贴墙吸附」后靠近墙面会自动贴齐。</section>`;
+  <section class="muted" style="font-size:12px">拖动家具移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「吸附」后绘制和移动时会自动贴齐。</section>`;
 }
 function bindFurnPanel(f){
   const upd = (fn) => mutate(() => { const g = getF(f.id); if (g) fn(g); });
@@ -995,7 +995,8 @@ document.querySelectorAll('#layers .btn').forEach(b => b.onclick = () => {
   saveLayers();
   b.classList.toggle('on', ui.layers[k]);
   if (k === 'dims') $('#gDims').setAttribute('display', ui.layers.dims ? 'inline' : 'none');
-  else if (k !== 'wallSnap') renderAll();
+  else if (k === 'wallSnap') window.PlanEditor?.syncOverlay?.();
+  else renderAll();
 });
 $('#zoomIn').onclick = () => zoomCenter(1.25);
 $('#zoomOut').onclick = () => zoomCenter(.8);
