@@ -655,7 +655,7 @@ function drawSelection() {
     }
   } else {
     const entity = selected.kind === 'wall' ? WALLS[selected.index] : selected.kind === 'window' ? WINS[selected.index] : DOORS[selected.index]?.rect;
-    if (entity) output = `<rect x="${entity[0]}" y="${entity[1]}" width="${entity[2] - entity[0]}" height="${entity[3] - entity[1]}" fill="none" stroke="#b5653a" stroke-width="2" stroke-dasharray="6 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+    if (entity) output += `<rect x="${entity[0]}" y="${entity[1]}" width="${entity[2] - entity[0]}" height="${entity[3] - entity[1]}" fill="none" stroke="#b5653a" stroke-width="2" stroke-dasharray="6 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
   }
   selectionLayer.innerHTML = output;
 }
@@ -1015,6 +1015,22 @@ function moveRectangleVertex(room, pointIndex, point, basePolygon) {
   return {x, y, geometry: next.geometry};
 }
 
+/**
+ * 门的拖动只维护一个事实来源：door.rect。
+ * 门槛（gRooms）和门框/门扇（gOpen）都从同一份数据立即重绘，
+ * 避免拖动过程中两个图层分别使用旧坐标。
+ */
+function moveDoorEntityDuringDrag(door, baseDoor, dx, dy) {
+  if (!door || !baseDoor?.rect) return false;
+  door.rect = baseDoor.rect.map((value, index) => value + (index % 2 ? dy : dx));
+  door.axis = baseDoor.axis;
+  updateDoorGeometry(door);
+  syncPlanRefs();
+  renderRooms();
+  renderOpenings();
+  return true;
+}
+
 function moveSelected(point) {
   const drag = editor.drag;
   if (!drag) return;
@@ -1071,11 +1087,7 @@ function moveSelected(point) {
       syncPlanRefs();
       renderOpenings();
     } else if (kind === 'door') {
-      const door = state.plan.doors[drag.target.index];
-      door.rect = drag.base.rect.map((value, index) => value + (index % 2 ? dy : dx));
-      updateDoorGeometry(door);
-      syncPlanRefs();
-      renderOpenings();
+      moveDoorEntityDuringDrag(state.plan.doors[drag.target.index], drag.base, dx, dy);
     }
   }
   drag.moved = true;
@@ -1139,7 +1151,7 @@ function releasePointer(event) {
 function onPointerDown(event) {
   if (!editor.active || event.button === 1 || event.button === 2) return;
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
   const point = screenToPlan(event);
   if (editor.mode === 'room-rect') {
     const start = snapRoomPoint(point, null);
@@ -1220,7 +1232,7 @@ function onPointerDown(event) {
 function onPointerMove(event) {
   if (!editor.active) return;
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
   const point = screenToPlan(event);
   if (editor.mode === 'room-rect' && editor.draft.start) {
     editor.draft.current = snapRoomPoint(point, null);
@@ -1252,7 +1264,7 @@ function onPointerMove(event) {
 function onPointerUp(event) {
   if (!editor.active) return;
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
   if (editor.mode === 'room-rect' && editor.draft.start) {
     finishRoomRect();
     releasePointer(event);
@@ -1267,6 +1279,7 @@ function onPointerUp(event) {
   editor.drag = null;
   editor.guides = [];
   drawDraft();
+  drawSelection();
   releasePointer(event);
   if (!drag || drag.kind === 'pan') return;
   if (drag.moved) {
@@ -1279,7 +1292,7 @@ function onPointerUp(event) {
 function onPointerCancel(event) {
   if (!editor.active) return;
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
   releasePointer(event);
   editor.guides = [];
   drawDraft();
@@ -1290,6 +1303,7 @@ function onPointerCancel(event) {
   }
   const drag = editor.drag;
   editor.drag = null;
+  drawSelection();
   if (drag?.moved) {
     state = JSON.parse(drag.before);
     syncPlanRefs();
@@ -1300,7 +1314,7 @@ function onPointerCancel(event) {
 function onDoubleClick(event) {
   if (!editor.active || editor.mode !== 'room') return;
   event.preventDefault();
-  event.stopPropagation();
+  event.stopImmediatePropagation();
   if (editor.draft.points.length >= 3) finishRoom();
 }
 
