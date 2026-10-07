@@ -22,6 +22,7 @@
 <div class="app">
   <header>
     <div class="grp" id="paneBtns">
+      <button class="btn chip" id="tgPlan">⌂ 户型</button>
       <button class="btn chip" id="tgLib">◧ 家具库</button>
       <button class="btn chip" id="tgPanel">属性 ◨</button>
     </div>
@@ -87,6 +88,33 @@
   </header>
 
   <aside class="lib">
+    <div id="planTools" class="plan-tools" hidden>
+      <h4>绘制房间</h4>
+      <div class="plan-grid">
+        <button class="plan-item" data-plan-tool="room"><b>⌘</b><span>房间多边形</span><small>点击顶点，闭合完成</small></button>
+      </div>
+      <h4>绘制墙体</h4>
+      <div class="plan-grid">
+        <button class="plan-item" data-plan-tool="wall" data-plan-type="n"><b>▰</b><span>普通墙</span><small>水平 / 垂直吸附</small></button>
+        <button class="plan-item" data-plan-tool="wall" data-plan-type="b"><b>▮</b><span>承重墙</span><small>不可拆除</small></button>
+        <button class="plan-item" data-plan-tool="wall" data-plan-type="e"><b>▤</b><span>外墙</span><small>建筑外围护</small></button>
+        <button class="plan-item" data-plan-tool="wall" data-plan-type="low"><b>▱</b><span>矮墙</span><small>低墙 / 半墙</small></button>
+      </div>
+      <h4>绘制窗户</h4>
+      <div class="plan-grid">
+        <button class="plan-item" data-plan-tool="window" data-plan-type="normal"><b>▥</b><span>普通窗</span><small>标准窗洞</small></button>
+        <button class="plan-item" data-plan-tool="window" data-plan-type="floor"><b>▥</b><span>落地窗</span><small>低窗台</small></button>
+        <button class="plan-item" data-plan-tool="window" data-plan-type="bay"><b>▥</b><span>飘窗</span><small>外凸窗台</small></button>
+      </div>
+      <h4>绘制门</h4>
+      <div class="plan-grid">
+        <button class="plan-item" data-plan-tool="door" data-plan-type="in-left"><b>↙</b><span>内开 · 左铰链</span><small>拖出门洞</small></button>
+        <button class="plan-item" data-plan-tool="door" data-plan-type="in-right"><b>↘</b><span>内开 · 右铰链</span><small>拖出门洞</small></button>
+        <button class="plan-item" data-plan-tool="door" data-plan-type="out-left"><b>↖</b><span>外开 · 左铰链</span><small>拖出门洞</small></button>
+        <button class="plan-item" data-plan-tool="door" data-plan-type="out-right"><b>↗</b><span>外开 · 右铰链</span><small>拖出门洞</small></button>
+      </div>
+      <div class="hint">绘制时自动吸附到网格、端点和水平 / 垂直方向；边长会实时显示。绘制完成后自动回到编辑状态；点击画布中的对象即可修改属性。</div>
+    </div>
     <div id="lib3d" class="only3d">
       <h4>房间 · 点击飞到该房间</h4>
       <div id="roomList"></div>
@@ -105,6 +133,7 @@
       <g id="gLabels" pointer-events="none"></g>
       <g id="gDims" pointer-events="none"></g>
       <g id="gMeasure" pointer-events="none"></g>
+      <g id="gDraft" pointer-events="none"></g>
       <g id="gSel"></g>
     </svg>
     <div id="view3d">
@@ -135,6 +164,7 @@
 <div id="toast"></div>
 
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/plan-editor.js"></script>
   <script type="module" src="assets/js/scene3d.js"></script>
 </body>
 </html>

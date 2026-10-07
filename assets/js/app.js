@@ -299,20 +299,26 @@ function renderWalls(){
 function renderOpenings(){
   const WS = 'stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"';
   let s = '';
-  WINS.forEach(([x0,y0,x1,y1]) => {
+  WINS.forEach(([x0,y0,x1,y1,type='normal'], index) => {
     const w = x1-x0, h = y1-y0;
-    s += `<rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="#f7fbfd" ${WS}/>`;
-    if (w >= h) [1/3,2/3].forEach(t => s += `<line x1="${x0}" y1="${y0+h*t}" x2="${x1}" y2="${y0+h*t}" ${WS}/>`);
-    else [1/3,2/3].forEach(t => s += `<line x1="${x0+w*t}" y1="${y0}" x2="${x0+w*t}" y2="${y1}" ${WS}/>`);
+    const fill = type === 'floor' ? '#c9edf8' : type === 'bay' ? '#dceafa' : '#f7fbfd';
+    const strokeWidth = type === 'floor' ? 2 : 1;
+    s += `<g data-window="${index}"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${fill}" ${WS} stroke-width="${strokeWidth}"/>`;
+    if (w >= h) [1/3,2/3].forEach(t => s += `<line x1="${x0+w*t}" y1="${y0}" x2="${x0+w*t}" y2="${y1}" ${WS}/>`);
+    else [1/3,2/3].forEach(t => s += `<line x1="${x0}" y1="${y0+h*t}" x2="${x1}" y2="${y0+h*t}" ${WS}/>`);
+    if (type === 'floor') s += `<rect x="${x0+w*.08}" y="${y0+h*.08}" width="${w*.84}" height="${h*.84}" fill="none" stroke="#8cc9dc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    if (type === 'bay') s += `<path d="M${x0} ${y0}L${x0+w*.12} ${y0-h*.18}H${x1-w*.12}L${x1} ${y0}M${x0} ${y1}L${x0+w*.12} ${y1+h*.18}H${x1-w*.12}L${x1} ${y1}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    s += '</g>';
   });
   const DS = 'stroke="#3d3a34" stroke-width="1" vector-effect="non-scaling-stroke"';
-  DOORS.forEach(d => {
-    const [hx,hy] = d.h, L = d.len, T = 40;
+  DOORS.forEach((d, index) => {
+    if (!Array.isArray(d.h) || !Array.isArray(d.o) || !Array.isArray(d.c)) return;
+    const [hx,hy] = d.h, L = Number(d.len) || 800, T = 40;
     const ox = hx + d.o[0]*L, oy = hy + d.o[1]*L, cx = hx + d.c[0]*L, cy = hy + d.c[1]*L;
     const sweep = d.o[0]*d.c[1] - d.o[1]*d.c[0] > 0 ? 1 : 0;
     const col = d.entry ? '#b5653a' : '#3d3a34';
-    s += `<polygon points="${hx},${hy} ${ox},${oy} ${ox+d.c[0]*T},${oy+d.c[1]*T} ${hx+d.c[0]*T},${hy+d.c[1]*T}" fill="#fff" stroke="${col}" stroke-width="${d.entry?1.8:1}" vector-effect="non-scaling-stroke"/>`;
-    s += `<path d="M${ox} ${oy}A${L} ${L} 0 0 ${sweep} ${cx} ${cy}" fill="none" ${DS} stroke-dasharray="5 3" opacity=".7"/>`;
+    s += `<g data-door="${index}"><polygon points="${hx},${hy} ${ox},${oy} ${ox+d.c[0]*T},${oy+d.c[1]*T} ${hx+d.c[0]*T},${hy+d.c[1]*T}" fill="#fff" stroke="${col}" stroke-width="${d.entry?1.8:1}" vector-effect="non-scaling-stroke"/>`;
+    s += `<path d="M${ox} ${oy}A${L} ${L} 0 0 ${sweep} ${cx} ${cy}" fill="none" ${DS} stroke-dasharray="5 3" opacity=".7"/></g>`;
   });
   SLIDES.forEach(({rect:[x0,y0,x1,y1],v}) => {
     if (v){ const L = y1-y0, m = (x0+x1)/2; s += `<rect x="${m-45}" y="${y0}" width="40" height="${L*.55}" fill="#fff" ${DS}/><rect x="${m+5}" y="${y1-L*.55}" width="40" height="${L*.55}" fill="#fff" ${DS}/>`; }
@@ -401,7 +407,8 @@ function renderSel(){
 }
 
 function renderAll(){
-  renderGrid(); renderRooms(); renderFurn(); renderWalls(); renderDims(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
+  renderGrid(); renderRooms(); renderFurn(); renderWalls(); renderOpenings(); renderDims(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
+  window.PlanEditor?.syncRender?.();
   window.View3D?.sync();
 }
 
@@ -534,7 +541,10 @@ function drawer(which, open){
 function syncPaneBtns(){
   const els = {lib:$('aside.lib'), panel:$('aside.right')}, n = narrow();
   const vis = k => n ? els[k].classList.contains('open') : !panes[k === 'lib' ? 'hideLib' : 'hidePanel'];
-  $('#tgLib').classList.toggle('on', vis('lib')); $('#tgPanel').classList.toggle('on', vis('panel'));
+  const planActive = window.PlanEditor?.isActive?.() === true;
+  $('#tgPlan').classList.toggle('on', planActive);
+  $('#tgLib').classList.toggle('on', !planActive && vis('lib'));
+  $('#tgPanel').classList.toggle('on', vis('panel'));
   $('#tgLib').title = vis('lib') ? '收起家具库 ( [ )' : '展开家具库 ( [ )';
   $('#tgPanel').title = vis('panel') ? '收起属性面板 ( ] )' : '展开属性面板 ( ] )';
   $('#stage').classList.toggle('drawer-panel', n && vis('panel'));   // 属性抽屉盖住画面时让出底部工具条
@@ -664,7 +674,7 @@ function applyView(){
   const nice = [100,200,500,1000,2000,5000].find(v => v*view.s >= 60) || 5000;
   $('#sbBar').style.width = nice*view.s + 'px';
   $('#sbText').textContent = nice >= 1000 ? `${nice/1000} m` : `${nice} mm`;
-  renderSel(); renderMeasure();
+  renderSel(); renderMeasure(); window.PlanEditor?.syncOverlay?.();
 }
 function fitView(){
   const W = svg.clientWidth, H = svg.clientHeight;

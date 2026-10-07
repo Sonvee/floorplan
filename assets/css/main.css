@@ -205,6 +205,62 @@ aside.right {
   color: var(--muted);
   font-size: 12px;
 }
+.plan-tools[hidden] {
+  display: none;
+}
+.plan-tools h4 {
+  margin: 0;
+  padding: 12px 14px 6px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 1px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+.plan-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 10px 6px;
+}
+.plan-item {
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s, background 0.15s;
+}
+.plan-item b {
+  color: var(--accent);
+  font-size: 18px;
+  line-height: 1;
+}
+.plan-item span {
+  font-size: 12px;
+  color: var(--ink);
+}
+.plan-item small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+.plan-item:hover,
+.plan-item.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
 main {
   position: relative;
   overflow: hidden;
@@ -223,8 +279,26 @@ main {
 #plan.tool-measure {
   cursor: crosshair;
 }
+#plan.tool-plan-room,
+#plan.tool-plan-wall,
+#plan.tool-plan-window,
+#plan.tool-plan-door {
+  cursor: crosshair;
+}
 #plan .wall {
   pointer-events: none;
+}
+#plan.tool-plan-edit .wall,
+#plan.tool-plan-edit [data-window],
+#plan.tool-plan-edit [data-door],
+#plan.tool-plan-edit .room {
+  pointer-events: all;
+  cursor: pointer;
+}
+#plan.tool-plan-edit .wall:hover,
+#plan.tool-plan-edit [data-window]:hover,
+#plan.tool-plan-edit [data-door]:hover {
+  filter: drop-shadow(0 0 2px rgba(181, 101, 58, 0.75));
 }
 #plan.tool-demolish .wall {
   pointer-events: all;
@@ -861,6 +935,10 @@ main.drawer-panel #fab {
   }
   .item {
     padding: 10px 4px 8px;
+  }
+  .plan-item {
+    min-height: 88px;
+    padding: 10px;
   }
   .form input,
   .form select {

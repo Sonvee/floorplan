@@ -1,0 +1,858 @@
+/* 户型编辑器：房间、墙体、窗户和门的独立绘制与编辑逻辑。 */
+const $p = selector => document.querySelector(selector);
+const planTools = $p('#planTools');
+const furnitureLibrary = $p('#lib');
+const planSvg = $p('#plan');
+const draftLayer = $p('#gDraft');
+const selectionLayer = $p('#gSel');
+const planPanel = $p('#panel');
+const planTypes = loadJson('assets/json/plan-elements.json');
+
+const PLAN_RULES = {
+  grid: 10,
+  snapTolerance: 12,
+  orthogonalAngle: 10,
+  wallThickness: 180,
+  windowThickness: 160,
+  floorWindowThickness: 220,
+  bayWindowThickness: 260,
+  doorThickness: 140,
+  minimumPrimitiveLength: 100,
+  minimumDoorLength: 500
+};
+
+const WALL_TYPES = Object.fromEntries((planTypes.walls || []).map(item => [item.type, item.name]));
+const WINDOW_TYPES = Object.fromEntries((planTypes.windows || []).map(item => [item.type, item.name]));
+const DOOR_SWINGS = Object.fromEntries((planTypes.doors || []).map(item => [item.type, item.name]));
+const PLAN_DEFINITIONS = {
+  wall: Object.fromEntries((planTypes.walls || []).map(item => [item.type, item])),
+  window: Object.fromEntries((planTypes.windows || []).map(item => [item.type, item])),
+  door: Object.fromEntries((planTypes.doors || []).map(item => [item.type, item]))
+};
+
+const editor = {
+  active: false,
+  mode: 'edit',
+  type: null,
+  selected: null,
+  draft: {kind: null, type: null, points: [], start: null, current: null},
+  drag: null
+};
+
+const emptyDraft = () => ({kind: null, type: null, points: [], start: null, current: null});
+const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const samePoint = (a, b, tolerance = 1) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= tolerance;
+const nextId = prefix => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const safeWallType = value => WALL_TYPES[value] ? value : 'n';
+const safeWindowType = value => WINDOW_TYPES[value] ? value : 'normal';
+const safeDoorSwing = value => DOOR_SWINGS[value] ? value : 'in-left';
+const clampPositive = (value, fallback, minimum = 1) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(minimum, parsed) : fallback;
+};
+
+function normalizeAxis(axis, rect) {
+  if (axis === 'h' || axis === 'v') return axis;
+  return Math.abs(rect[2] - rect[0]) >= Math.abs(rect[3] - rect[1]) ? 'h' : 'v';
+}
+
+function normalizeRect(values) {
+  const [x0, y0, x1, y1] = values.map(Number);
+  return [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)];
+}
+
+function normalizeRectEntity(entity, type, fallbackType) {
+  const values = normalizeRect(entity.slice(0, 4));
+  return [...values, type(entity[4]) || fallbackType, normalizeAxis(entity[5], values)];
+}
+
+function ensurePlanData() {
+  state.plan ||= {walls: [], wins: [], doors: [], slides: [], rooms: [], dimensions: []};
+  state.plan.walls = (state.plan.walls || []).filter(Array.isArray)
+    .map(wall => normalizeRectEntity(wall, safeWallType, 'n'));
+  state.plan.wins = (state.plan.wins || []).filter(Array.isArray)
+    .map(win => normalizeRectEntity(win, safeWindowType, 'normal'));
+  state.plan.doors = (state.plan.doors || []).filter(door => door && Array.isArray(door.rect))
+    .map(door => {
+      const normalized = {...door, rect: normalizeRect(door.rect), swing: safeDoorSwing(door.swing), type: door.type || 'hinged'};
+      normalized.axis = normalizeAxis(normalized.axis, normalized.rect);
+      updateDoorGeometry(normalized);
+      return normalized;
+    });
+  state.plan.rooms = (state.plan.rooms || []).filter(room => Array.isArray(room?.poly) && room.poly.length >= 3)
+    .map(room => ({
+      ...room,
+      id: room.id || nextId('r'),
+      poly: room.poly.map(point => [Number(point[0]), Number(point[1])])
+    }));
+  state.rooms ||= {};
+  state.plan.rooms.forEach(room => {
+    state.rooms[room.id] ||= {name: room.name || room.id, mat: 'wood'};
+    room.name ||= state.rooms[room.id].name || room.id;
+    room.at = polygonCenter(room.poly);
+  });
+  syncPlanRefs();
+}
+
+function polygonCenter(polygon) {
+  return polygon.reduce((sum, point) => [sum[0] + point[0] / polygon.length, sum[1] + point[1] / polygon.length], [0, 0]);
+}
+
+function screenToPlan(event) {
+  const point = planSvg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  return point.matrixTransform(planSvg.getScreenCTM().inverse());
+}
+
+function rawSnap(point) {
+  const step = PLAN_RULES.grid;
+  const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
+  let x = Math.round(point.x / step) * step;
+  let y = Math.round(point.y / step) * step;
+  const candidates = [];
+  WALLS.forEach(wall => candidates.push([wall[0], wall[1]], [wall[2], wall[3]]));
+  WINS.forEach(win => candidates.push([win[0], win[1]], [win[2], win[3]]));
+  DOORS.forEach(door => candidates.push([door.rect[0], door.rect[1]], [door.rect[2], door.rect[3]]));
+  ROOMS.forEach(room => room.poly.forEach(pointValue => candidates.push(pointValue)));
+  candidates.forEach(([candidateX, candidateY]) => {
+    if (Math.abs(candidateX - point.x) <= tolerance) x = candidateX;
+    if (Math.abs(candidateY - point.y) <= tolerance) y = candidateY;
+  });
+  return {x, y};
+}
+
+function snapRoomPoint(point, previous) {
+  const next = rawSnap(point);
+  if (!previous) return next;
+  const dx = Math.abs(next.x - previous.x);
+  const dy = Math.abs(next.y - previous.y);
+  const angle = PLAN_RULES.orthogonalAngle * Math.PI / 180;
+  if (dx > 0 && dy / dx <= Math.tan(angle)) next.y = previous.y;
+  else if (dy > 0 && dx / dy <= Math.tan(angle)) next.x = previous.x;
+  return next;
+}
+
+function snapOrthogonal(point, start) {
+  const next = rawSnap(point);
+  if (!start) return next;
+  if (Math.abs(next.x - start.x) >= Math.abs(next.y - start.y)) next.y = start.y;
+  else next.x = start.x;
+  return next;
+}
+
+function primitiveWidth(kind, type) {
+  if (kind === 'wall') return PLAN_RULES.wallThickness;
+  if (kind === 'door') return PLAN_RULES.doorThickness;
+  if (type === 'floor') return PLAN_RULES.floorWindowThickness;
+  if (type === 'bay') return PLAN_RULES.bayWindowThickness;
+  return PLAN_RULES.windowThickness;
+}
+
+function rectFromSegment(start, end, kind, type) {
+  const horizontal = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y);
+  const width = primitiveWidth(kind, type);
+  const rect = horizontal
+    ? [Math.min(start.x, end.x), start.y - width / 2, Math.max(start.x, end.x), start.y + width / 2]
+    : [start.x - width / 2, Math.min(start.y, end.y), start.x + width / 2, Math.max(start.y, end.y)];
+  return [...rect, horizontal ? 'h' : 'v'];
+}
+
+function entityAxis(entity, kind) {
+  return normalizeAxis(kind === 'door' ? entity.axis : entity[5], kind === 'door' ? entity.rect : entity.slice(0, 4));
+}
+
+function entityDimensions(entity, kind) {
+  const rect = kind === 'door' ? entity.rect : entity;
+  const axis = entityAxis(entity, kind);
+  return {
+    axis,
+    length: axis === 'h' ? rect[2] - rect[0] : rect[3] - rect[1],
+    width: axis === 'h' ? rect[3] - rect[1] : rect[2] - rect[0]
+  };
+}
+
+function setEntityDimensions(entity, kind, length, width, axis = entityAxis(entity, kind)) {
+  const rect = kind === 'door' ? entity.rect : entity;
+  const centerX = (rect[0] + rect[2]) / 2;
+  const centerY = (rect[1] + rect[3]) / 2;
+  const current = entityDimensions(entity, kind);
+  const nextLength = clampPositive(length, current.length, kind === 'door' ? PLAN_RULES.minimumDoorLength : PLAN_RULES.minimumPrimitiveLength);
+  const nextWidth = clampPositive(width, current.width, 20);
+  const nextRect = axis === 'h'
+    ? [centerX - nextLength / 2, centerY - nextWidth / 2, centerX + nextLength / 2, centerY + nextWidth / 2]
+    : [centerX - nextWidth / 2, centerY - nextLength / 2, centerX + nextWidth / 2, centerY + nextLength / 2];
+  if (kind === 'door') {
+    entity.rect = nextRect;
+    entity.axis = axis;
+    updateDoorGeometry(entity);
+  } else {
+    entity[0] = nextRect[0];
+    entity[1] = nextRect[1];
+    entity[2] = nextRect[2];
+    entity[3] = nextRect[3];
+    entity[5] = axis;
+  }
+}
+
+function createDoor(start, end, swing) {
+  const selectedSwing = safeDoorSwing(swing);
+  const axis = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y) ? 'h' : 'v';
+  const segment = rectFromSegment(start, end, 'door', selectedSwing);
+  const door = {
+    type: 'hinged',
+    swing: selectedSwing,
+    axis,
+    rect: segment.slice(0, 4),
+    entry: false
+  };
+  updateDoorGeometry(door);
+  return door;
+}
+
+function updateDoorGeometry(door) {
+  door.swing = safeDoorSwing(door.swing);
+  door.rect = normalizeRect(door.rect);
+  door.axis = normalizeAxis(door.axis, door.rect);
+  const {axis, length} = entityDimensions(door, 'door');
+  const horizontal = axis === 'h';
+  const rightHinge = door.swing.endsWith('right');
+  const inward = door.swing.startsWith('in');
+  const middle = horizontal ? (door.rect[1] + door.rect[3]) / 2 : (door.rect[0] + door.rect[2]) / 2;
+  door.h = horizontal
+    ? [rightHinge ? door.rect[2] : door.rect[0], middle]
+    : [middle, rightHinge ? door.rect[3] : door.rect[1]];
+  door.len = Math.max(PLAN_RULES.minimumDoorLength, length);
+  door.c = rightHinge ? (horizontal ? [-1, 0] : [0, -1]) : (horizontal ? [1, 0] : [0, 1]);
+  door.o = horizontal
+    ? [0, inward ? 1 : -1]
+    : [inward ? 1 : -1, 0];
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const intersects = ((yi > point.y) !== (yj > point.y)) && point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function pointInRect(point, values, padding = 0) {
+  return point.x >= values[0] - padding && point.x <= values[2] + padding
+    && point.y >= values[1] - padding && point.y <= values[3] + padding;
+}
+
+function hitTest(point) {
+  const doorPadding = Math.max(100, 18 / Math.max(view.s, 0.001));
+  const openingPadding = Math.max(80, 14 / Math.max(view.s, 0.001));
+  for (let index = DOORS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, DOORS[index].rect, doorPadding)) return {kind: 'door', index};
+  }
+  for (let index = WINS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, WINS[index], openingPadding)) return {kind: 'window', index};
+  }
+  for (let index = WALLS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, WALLS[index], openingPadding)) return {kind: 'wall', index};
+  }
+  for (let index = ROOMS.length - 1; index >= 0; index--) {
+    if (pointInPolygon(point, ROOMS[index].poly)) return {kind: 'room', index, id: ROOMS[index].id};
+  }
+  return null;
+}
+
+function selectedRoomVertex(point) {
+  if (editor.selected?.kind !== 'room') return null;
+  const room = ROOMS[editor.selected.index];
+  if (!room) return null;
+  const tolerance = Math.max(80, 16 / Math.max(view.s, 0.001));
+  let result = null;
+  room.poly.forEach((vertex, index) => {
+    if (Math.hypot(vertex[0] - point.x, vertex[1] - point.y) <= tolerance) result = index;
+  });
+  return result;
+}
+
+function segmentLength(a, b) {
+  return Math.round(Math.hypot(b.x - a.x, b.y - a.y));
+}
+
+function dimensionText(a, b, color = '#2f5d62') {
+  const length = segmentLength(a, b);
+  if (length < 1) return '';
+  const middleX = (a.x + b.x) / 2;
+  const middleY = (a.y + b.y) / 2;
+  let angle = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+  if (angle > 90 || angle < -90) angle += 180;
+  const fontSize = 12 / Math.max(view.s, 0.001);
+  return `<text x="${middleX}" y="${middleY - 12 / view.s}" font-size="${fontSize}" text-anchor="middle" fill="${color}" font-weight="600" stroke="#fff" stroke-width="${3.5 / view.s}" paint-order="stroke" transform="rotate(${angle} ${middleX} ${middleY})">${length} mm</text>`;
+}
+
+function dimensionRectText(values, color = '#b5653a') {
+  const axis = Math.abs(values[2] - values[0]) >= Math.abs(values[3] - values[1]) ? 'h' : 'v';
+  const lengthLine = axis === 'h'
+    ? [{x: values[0], y: values[1]}, {x: values[2], y: values[1]}]
+    : [{x: values[0], y: values[1]}, {x: values[0], y: values[3]}];
+  const widthLine = axis === 'h'
+    ? [{x: values[2], y: values[1]}, {x: values[2], y: values[3]}]
+    : [{x: values[0], y: values[3]}, {x: values[2], y: values[3]}];
+  return dimensionText(lengthLine[0], lengthLine[1], color) + dimensionText(widthLine[0], widthLine[1], color);
+}
+
+function drawWindowPreview(values, type, opacity = 1) {
+  const [x0, y0, x1, y1] = values;
+  const width = x1 - x0;
+  const height = y1 - y0;
+  const fill = type === 'floor' ? '#c9edf8' : type === 'bay' ? '#dceafa' : '#f7fbfd';
+  const strokeWidth = type === 'floor' ? 2 : 1;
+  let output = `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${fill}" fill-opacity="${opacity}" stroke="#4f7394" stroke-width="${strokeWidth}" vector-effect="non-scaling-stroke"/>`;
+  if (width >= height) {
+    output += `<line x1="${x0 + width / 3}" y1="${y0}" x2="${x0 + width / 3}" y2="${y1}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    output += `<line x1="${x0 + width * 2 / 3}" y1="${y0}" x2="${x0 + width * 2 / 3}" y2="${y1}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  } else {
+    output += `<line x1="${x0}" y1="${y0 + height / 3}" x2="${x1}" y2="${y0 + height / 3}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    output += `<line x1="${x0}" y1="${y0 + height * 2 / 3}" x2="${x1}" y2="${y0 + height * 2 / 3}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  }
+  if (type === 'floor') {
+    output += `<rect x="${x0 + width * .08}" y="${y0 + height * .08}" width="${width * .84}" height="${height * .84}" fill="none" stroke="#8cc9dc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+  }
+  if (type === 'bay') {
+    output += `<path d="M${x0} ${y0}L${x0 + width * .12} ${y0 - height * .18}H${x1 - width * .12}L${x1} ${y0}M${x0} ${y1}L${x0 + width * .12} ${y1 + height * .18}H${x1 - width * .12}L${x1} ${y1}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+  }
+  return `<g data-plan-window-preview="${type}">${output}</g>`;
+}
+
+function drawDoorPreview(door, opacity = 1) {
+  const [hx, hy] = door.h;
+  const length = door.len;
+  const outerX = hx + door.o[0] * length;
+  const outerY = hy + door.o[1] * length;
+  const endX = hx + door.c[0] * length;
+  const endY = hy + door.c[1] * length;
+  const sweep = door.o[0] * door.c[1] - door.o[1] * door.c[0] > 0 ? 1 : 0;
+  const thickness = 40;
+  return `<g opacity="${opacity}">
+    <polygon points="${hx},${hy} ${outerX},${outerY} ${outerX + door.c[0] * thickness},${outerY + door.c[1] * thickness} ${hx + door.c[0] * thickness},${hy + door.c[1] * thickness}" fill="#fff" stroke="#b5653a" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+    <path d="M${outerX} ${outerY}A${length} ${length} 0 0 ${sweep} ${endX} ${endY}" fill="none" stroke="#b5653a" stroke-width="1.5" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>
+  </g>`;
+}
+
+function drawDraft() {
+  if (!draftLayer) return;
+  const draft = editor.draft;
+  const line = 'stroke="#2f5d62" stroke-width="1.6" vector-effect="non-scaling-stroke"';
+  let output = '';
+  if (draft.kind === 'room' && draft.points.length) {
+    output += `<polyline points="${draft.points.map(point => `${point[0]},${point[1]}`).join(' ')}" fill="rgba(47,93,98,.08)" ${line} stroke-dasharray="6 4"/>`;
+    for (let index = 0; index < draft.points.length - 1; index++) {
+      output += dimensionText({x: draft.points[index][0], y: draft.points[index][1]}, {x: draft.points[index + 1][0], y: draft.points[index + 1][1]});
+    }
+    const last = draft.points[draft.points.length - 1];
+    if (draft.current) {
+      output += `<line x1="${last[0]}" y1="${last[1]}" x2="${draft.current.x}" y2="${draft.current.y}" ${line} stroke-dasharray="6 4"/>`;
+      output += dimensionText({x: last[0], y: last[1]}, draft.current, '#b5653a');
+      if (draft.points.length >= 3 && distance(draft.current, {x: draft.points[0][0], y: draft.points[0][1]}) <= 180) {
+        output += `<circle cx="${draft.points[0][0]}" cy="${draft.points[0][1]}" r="${12 / view.s}" fill="none" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+      }
+    }
+    draft.points.forEach((point, index) => {
+      output += `<circle cx="${point[0]}" cy="${point[1]}" r="${index === 0 ? 9 / view.s : 5 / view.s}" fill="#fff" stroke="${index === 0 ? '#b5653a' : '#2f5d62'}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+    });
+  } else if (draft.start && draft.current) {
+    const segment = rectFromSegment(draft.start, draft.current, draft.kind, draft.type);
+    const values = segment.slice(0, 4);
+    if (draft.kind === 'window') output += drawWindowPreview(values, draft.type, .72);
+    else if (draft.kind === 'door') output += drawDoorPreview(createDoor(draft.start, draft.current, draft.type), .85);
+    else output += `<rect x="${values[0]}" y="${values[1]}" width="${values[2] - values[0]}" height="${values[3] - values[1]}" fill="rgba(181,101,58,.16)" ${line} stroke-dasharray="6 4"/>`;
+    output += dimensionRectText(values);
+    if (draft.kind === 'wall') output += `<rect x="${values[0]}" y="${values[1]}" width="${values[2] - values[0]}" height="${values[3] - values[1]}" fill="none" ${line} stroke-dasharray="6 4"/>`;
+  }
+  draftLayer.innerHTML = output;
+}
+
+function drawSelection() {
+  if (!selectionLayer) return;
+  const selected = editor.selected;
+  if (!selected) {
+    selectionLayer.innerHTML = '';
+    return;
+  }
+  let output = '';
+  if (selected.kind === 'room') {
+    const room = ROOMS[selected.index];
+    if (room) {
+      output += `<polygon points="${room.poly.map(point => point.join(',')).join(' ')}" fill="rgba(181,101,58,.08)" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+      room.poly.forEach((point, index) => {
+        output += `<circle data-plan-handle="room-point" data-index="${index}" cx="${point[0]}" cy="${point[1]}" r="${8 / view.s}" fill="#fff" stroke="#b5653a" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+      });
+    }
+  } else {
+    const entity = selected.kind === 'wall' ? WALLS[selected.index] : selected.kind === 'window' ? WINS[selected.index] : DOORS[selected.index]?.rect;
+    if (entity) output = `<rect x="${entity[0]}" y="${entity[1]}" width="${entity[2] - entity[0]}" height="${entity[3] - entity[1]}" fill="none" stroke="#b5653a" stroke-width="2" stroke-dasharray="6 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+  }
+  selectionLayer.innerHTML = output;
+}
+
+function syncPlanToolLabels() {
+  document.querySelectorAll('[data-plan-tool][data-plan-type]').forEach(button => {
+    const definition = PLAN_DEFINITIONS[button.dataset.planTool]?.[button.dataset.planType];
+    if (!definition) return;
+    const glyph = button.querySelector('b');
+    const label = button.querySelector('span');
+    const hint = button.querySelector('small');
+    if (glyph) glyph.textContent = definition.glyph || '';
+    if (label) label.textContent = definition.name || '';
+    if (hint) hint.textContent = definition.hint || '';
+  });
+}
+
+function optionMarkup(values) {
+  return Object.entries(values).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+}
+
+function axisMarkup(id, axis) {
+  return `<label>方向<select id="${id}"><option value="h"${axis === 'h' ? ' selected' : ''}>水平</option><option value="v"${axis === 'v' ? ' selected' : ''}>垂直</option></select></label>`;
+}
+
+function dimensionMarkup(prefix, entity, kind) {
+  const dimensions = entityDimensions(entity, kind);
+  return `${axisMarkup(`${prefix}Axis`, dimensions.axis)}
+    <label>长度<input type="number" id="${prefix}Length" value="${Math.round(dimensions.length)}" min="100" step="10"></label>
+    <label>宽度<input type="number" id="${prefix}Width" value="${Math.round(dimensions.width)}" min="20" step="10"></label>`;
+}
+
+function planPanelMarkup() {
+  const selected = editor.selected;
+  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">点击房间、墙体、窗户或门可以编辑属性。空白区域可以拖动画布。</div></section>`;
+  if (selected.kind === 'room') {
+    const room = ROOMS[selected.index];
+    const settings = room && state.rooms[room.id];
+    if (!room || !settings) return '';
+    return `<section><h3>房间属性</h3><div class="form"><label class="full">名称<input id="planRoomName" value="${esc(settings.name)}"></label></div>
+      <div class="muted" style="margin-top:8px">面积 ${fmt(area(room.poly))} m² · 周长 ${fmt(perim(room.poly), 1)} m</div>
+      <div class="actions"><button class="btn danger" id="planDelete">删除房间</button><button class="btn" id="planBack">← 返回</button></div></section>
+      <section class="muted">拖动橙色顶点编辑轮廓。房间支持斜边，接近水平或垂直时才会吸附。</section>`;
+  }
+  if (selected.kind === 'wall') {
+    const wall = WALLS[selected.index];
+    if (!wall) return '';
+    return `<section><h3>墙体属性</h3><div class="form"><label class="full">类型<select id="planWallType">${optionMarkup(WALL_TYPES)}</select></label>
+      ${dimensionMarkup('planWall', wall, 'wall')}</div>
+      <div class="actions"><button class="btn danger" id="planDelete">删除墙体</button><button class="btn" id="planBack">← 返回</button></div></section>`;
+  }
+  if (selected.kind === 'window') {
+    const win = WINS[selected.index];
+    if (!win) return '';
+    return `<section><h3>窗户属性</h3><div class="form"><label class="full">类型<select id="planWindowType">${optionMarkup(WINDOW_TYPES)}</select></label>
+      ${dimensionMarkup('planWindow', win, 'window')}</div>
+      <div class="actions"><button class="btn danger" id="planDelete">删除窗户</button><button class="btn" id="planBack">← 返回</button></div></section>`;
+  }
+  const door = DOORS[selected.index];
+  if (!door) return '';
+  return `<section><h3>门属性</h3><div class="form"><label class="full">开启方向<select id="planDoorSwing">${optionMarkup(DOOR_SWINGS)}</select></label>
+    ${dimensionMarkup('planDoor', door, 'door')}</div>
+    <div class="actions"><button class="btn danger" id="planDelete">删除门</button><button class="btn" id="planBack">← 返回</button></div></section>`;
+}
+
+function commitPlan(before, change) {
+  change();
+  syncPlanRefs();
+  commit(before);
+  renderAll();
+}
+
+function selectPlan(selection) {
+  editor.selected = selection;
+  ui.sel = null;
+  drawSelection();
+  renderPlanPanel();
+}
+
+function bindDimensions(prefix, entity, kind) {
+  const axis = $p(`#${prefix}Axis`);
+  const length = $p(`#${prefix}Length`);
+  const width = $p(`#${prefix}Width`);
+  const update = () => commitPlan(snap(), () => {
+    const current = entityDimensions(entity, kind);
+    setEntityDimensions(entity, kind,
+      clampPositive(length.value, current.length, kind === 'door' ? PLAN_RULES.minimumDoorLength : PLAN_RULES.minimumPrimitiveLength),
+      clampPositive(width.value, current.width, 20), axis.value);
+  });
+  axis.onchange = update;
+  length.onchange = update;
+  width.onchange = update;
+}
+
+function renderPlanPanel() {
+  if (!editor.active || !planPanel) return;
+  planPanel.innerHTML = planPanelMarkup();
+  const selected = editor.selected;
+  if (!selected) return;
+  if (selected.kind === 'room') {
+    const room = ROOMS[selected.index];
+    if (!room) return;
+    $p('#planRoomName').onchange = event => commitPlan(snap(), () => {
+      state.rooms[room.id].name = event.target.value.trim() || state.rooms[room.id].name;
+      room.name = state.rooms[room.id].name;
+    });
+  } else if (selected.kind === 'wall') {
+    const wall = WALLS[selected.index];
+    if (!wall) return;
+    const type = $p('#planWallType');
+    type.value = wall[4];
+    type.onchange = event => commitPlan(snap(), () => wall[4] = safeWallType(event.target.value));
+    bindDimensions('planWall', wall, 'wall');
+  } else if (selected.kind === 'window') {
+    const win = WINS[selected.index];
+    if (!win) return;
+    const type = $p('#planWindowType');
+    type.value = win[4];
+    type.onchange = event => commitPlan(snap(), () => win[4] = safeWindowType(event.target.value));
+    bindDimensions('planWindow', win, 'window');
+  } else {
+    const door = DOORS[selected.index];
+    if (!door) return;
+    const swing = $p('#planDoorSwing');
+    swing.value = door.swing;
+    swing.onchange = event => commitPlan(snap(), () => {
+      door.swing = safeDoorSwing(event.target.value);
+      updateDoorGeometry(door);
+    });
+    bindDimensions('planDoor', door, 'door');
+  }
+  $p('#planDelete').onclick = deleteSelected;
+  $p('#planBack').onclick = () => selectPlan(null);
+}
+
+function deleteSelected() {
+  const selected = editor.selected;
+  if (!selected) return;
+  const before = snap();
+  if (selected.kind === 'room') {
+    const room = state.plan.rooms[selected.index];
+    state.plan.rooms.splice(selected.index, 1);
+    if (room) delete state.rooms[room.id];
+  } else if (selected.kind === 'wall') {
+    state.plan.walls.splice(selected.index, 1);
+  } else if (selected.kind === 'window') {
+    state.plan.wins.splice(selected.index, 1);
+  } else if (selected.kind === 'door') {
+    state.plan.doors.splice(selected.index, 1);
+  }
+  editor.selected = null;
+  commitPlan(before, () => {});
+}
+
+function closeDrawingMode(selection = null) {
+  editor.mode = 'edit';
+  editor.type = null;
+  editor.draft = emptyDraft();
+  editor.selected = selection;
+  planSvg.setAttribute('class', 'tool-plan-edit');
+  updateToolHighlight();
+  drawDraft();
+}
+
+function finishRoom() {
+  const points = editor.draft.points.slice();
+  if (points.length < 3) return;
+  if (samePoint(points[0], points[points.length - 1], 20)) points.pop();
+  if (points.length < 3 || area(points) < .25) return;
+  const room = {
+    id: nextId('r'),
+    name: '新房间',
+    poly: points,
+    counted: true,
+    at: polygonCenter(points)
+  };
+  const before = snap();
+  state.plan.rooms.push(room);
+  state.rooms[room.id] = {name: room.name, mat: 'wood'};
+  closeDrawingMode({kind: 'room', index: state.plan.rooms.length - 1, id: room.id});
+  commitPlan(before, () => {});
+}
+
+function finishPrimitive() {
+  const draft = editor.draft;
+  if (!draft.start || !draft.current) return;
+  if (distance(draft.start, draft.current) < PLAN_RULES.minimumPrimitiveLength) {
+    editor.draft = emptyDraft();
+    drawDraft();
+    return;
+  }
+  const before = snap();
+  const segment = rectFromSegment(draft.start, draft.current, draft.kind, draft.type);
+  let selection;
+  if (draft.kind === 'wall') {
+    state.plan.walls.push([...segment.slice(0, 4), safeWallType(draft.type), segment[4]]);
+    selection = {kind: 'wall', index: state.plan.walls.length - 1};
+  } else if (draft.kind === 'window') {
+    state.plan.wins.push([...segment.slice(0, 4), safeWindowType(draft.type), segment[4]]);
+    selection = {kind: 'window', index: state.plan.wins.length - 1};
+  } else {
+    const door = createDoor(draft.start, draft.current, draft.type);
+    state.plan.doors.push(door);
+    selection = {kind: 'door', index: state.plan.doors.length - 1};
+  }
+  closeDrawingMode(selection);
+  commitPlan(before, () => {});
+}
+
+function moveSelected(point) {
+  const drag = editor.drag;
+  if (!drag) return;
+  if (drag.kind === 'room-point') {
+    const room = state.plan.rooms[drag.roomIndex];
+    if (!room) return;
+    const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
+    const next = snapRoomPoint(point, {x: previous[0], y: previous[1]});
+    room.poly[drag.pointIndex] = [next.x, next.y];
+    room.at = polygonCenter(room.poly);
+    renderRooms();
+    renderLabels();
+  } else if (drag.kind === 'entity') {
+    const dx = Math.round((point.x - drag.anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
+    const dy = Math.round((point.y - drag.anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
+    if (drag.target.kind === 'wall') {
+      const wall = state.plan.walls[drag.target.index];
+      for (let index = 0; index < 4; index++) wall[index] = drag.base[index] + (index % 2 ? dy : dx);
+      syncPlanRefs();
+      renderWalls();
+    } else if (drag.target.kind === 'window') {
+      const win = state.plan.wins[drag.target.index];
+      for (let index = 0; index < 4; index++) win[index] = drag.base[index] + (index % 2 ? dy : dx);
+      syncPlanRefs();
+      renderOpenings();
+    } else if (drag.target.kind === 'door') {
+      const door = state.plan.doors[drag.target.index];
+      door.rect = drag.base.rect.map((value, index) => value + (index % 2 ? dy : dx));
+      updateDoorGeometry(door);
+      syncPlanRefs();
+      renderOpenings();
+    }
+  }
+  drag.moved = true;
+  syncPlanRefs();
+  drawSelection();
+}
+
+function updateToolHighlight() {
+  document.querySelectorAll('[data-plan-tool]').forEach(button => {
+    const matchesMode = button.dataset.planTool === editor.mode;
+    const matchesType = editor.mode === 'room' || button.dataset.planType === editor.type;
+    button.classList.toggle('on', matchesMode && matchesType);
+  });
+}
+
+function setMode(mode, type = null) {
+  editor.mode = mode;
+  editor.type = type;
+  editor.selected = null;
+  editor.draft = mode === 'edit' ? emptyDraft() : {kind: mode, type, points: [], start: null, current: null};
+  planSvg.setAttribute('class', mode === 'edit' ? 'tool-plan-edit' : `tool-plan-${mode}`);
+  updateToolHighlight();
+  drawDraft();
+  drawSelection();
+  renderPlanPanel();
+}
+
+function activatePlan() {
+  editor.active = true;
+  planTools.hidden = false;
+  furnitureLibrary.hidden = true;
+  setMode('edit');
+  drawer('lib', true);
+  $p('#tgPlan').classList.add('on');
+  $p('#tgLib').classList.remove('on');
+  renderPlanPanel();
+}
+
+function deactivatePlan() {
+  editor.active = false;
+  editor.selected = null;
+  editor.drag = null;
+  editor.draft = emptyDraft();
+  planTools.hidden = true;
+  furnitureLibrary.hidden = false;
+  planSvg.setAttribute('class', 'tool-select');
+  updateToolHighlight();
+  selectionLayer.innerHTML = '';
+  drawDraft();
+  $p('#tgPlan').classList.remove('on');
+  $p('#tgLib').classList.add('on');
+  renderAll();
+}
+
+function releasePointer(event) {
+  if (planSvg.hasPointerCapture?.(event.pointerId)) planSvg.releasePointerCapture(event.pointerId);
+}
+
+function onPointerDown(event) {
+  if (!editor.active || event.button === 1 || event.button === 2) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const point = screenToPlan(event);
+  if (editor.mode === 'room') {
+    const first = editor.draft.points[0];
+    if (editor.draft.points.length >= 3 && first && distance(point, {x: first[0], y: first[1]}) <= Math.max(180, 18 / view.s)) {
+      finishRoom();
+      releasePointer(event);
+      return;
+    }
+    const previous = editor.draft.points.at(-1);
+    const next = snapRoomPoint(point, previous && {x: previous[0], y: previous[1]});
+    if (!previous || distance(next, {x: previous[0], y: previous[1]}) > 20) editor.draft.points.push([next.x, next.y]);
+    editor.draft.current = next;
+    drawDraft();
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
+  if (['wall', 'window', 'door'].includes(editor.mode)) {
+    const start = snapOrthogonal(point, null);
+    editor.draft.start = start;
+    editor.draft.current = start;
+    drawDraft();
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
+  const vertex = selectedRoomVertex(point);
+  if (vertex !== null) {
+    editor.drag = {kind: 'room-point', roomIndex: editor.selected.index, pointIndex: vertex, anchor: point, before: snap(), moved: false};
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
+  const target = hitTest(point);
+  if (target) {
+    selectPlan(target);
+    if (target.kind !== 'room') {
+      const entity = target.kind === 'wall' ? WALLS[target.index] : target.kind === 'window' ? WINS[target.index] : DOORS[target.index];
+      editor.drag = {kind: 'entity', target, anchor: point, base: JSON.parse(JSON.stringify(entity)), before: snap(), moved: false};
+    }
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
+  editor.drag = {kind: 'pan', anchorScreen: [event.clientX, event.clientY], view: [view.x0, view.y0], moved: false};
+  planSvg.setPointerCapture(event.pointerId);
+}
+
+function onPointerMove(event) {
+  if (!editor.active) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const point = screenToPlan(event);
+  if (editor.mode === 'room' && editor.draft.points.length) {
+    const previous = editor.draft.points.at(-1);
+    editor.draft.current = snapRoomPoint(point, {x: previous[0], y: previous[1]});
+    drawDraft();
+  } else if (editor.draft.start && ['wall', 'window', 'door'].includes(editor.mode)) {
+    editor.draft.current = snapOrthogonal(point, editor.draft.start);
+    drawDraft();
+  }
+  const drag = editor.drag;
+  if (!drag) return;
+  if (drag.kind === 'pan') {
+    if (Math.hypot(event.clientX - drag.anchorScreen[0], event.clientY - drag.anchorScreen[1]) < 2) return;
+    drag.moved = true;
+    view.x0 = drag.view[0] - (event.clientX - drag.anchorScreen[0]) / view.s;
+    view.y0 = drag.view[1] - (event.clientY - drag.anchorScreen[1]) / view.s;
+    applyView();
+    return;
+  }
+  moveSelected(point);
+}
+
+function onPointerUp(event) {
+  if (!editor.active) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (editor.draft.start && ['wall', 'window', 'door'].includes(editor.mode)) {
+    finishPrimitive();
+    releasePointer(event);
+    return;
+  }
+  const drag = editor.drag;
+  editor.drag = null;
+  releasePointer(event);
+  if (!drag || drag.kind === 'pan') return;
+  if (drag.moved) {
+    syncPlanRefs();
+    commit(drag.before);
+    renderAll();
+  }
+}
+
+function onPointerCancel(event) {
+  if (!editor.active) return;
+  event.preventDefault();
+  event.stopPropagation();
+  releasePointer(event);
+  if (editor.draft.kind) {
+    editor.draft = emptyDraft();
+    drawDraft();
+    return;
+  }
+  const drag = editor.drag;
+  editor.drag = null;
+  if (drag?.moved) {
+    state = JSON.parse(drag.before);
+    syncPlanRefs();
+    renderAll();
+  }
+}
+
+function onDoubleClick(event) {
+  if (!editor.active || editor.mode !== 'room') return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (editor.draft.points.length >= 3) finishRoom();
+}
+
+function init() {
+  ensurePlanData();
+  syncPlanToolLabels();
+  $p('#tgPlan').onclick = activatePlan;
+  $p('#tgLib').onclick = deactivatePlan;
+  document.querySelectorAll('[data-plan-tool]').forEach(button => {
+    button.onclick = () => setMode(button.dataset.planTool, button.dataset.planType || null);
+  });
+  planSvg.addEventListener('pointerdown', onPointerDown, true);
+  planSvg.addEventListener('pointermove', onPointerMove, true);
+  planSvg.addEventListener('pointerup', onPointerUp, true);
+  planSvg.addEventListener('pointercancel', onPointerCancel, true);
+  planSvg.addEventListener('dblclick', onDoubleClick, true);
+  document.addEventListener('keydown', event => {
+    if (!editor.active || event.target.matches('input,select,textarea')) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (editor.draft.kind) setMode('edit');
+      else selectPlan(null);
+    }
+  });
+  window.PlanEditor.syncOverlay();
+}
+
+/**
+ * 对原有家具渲染流程提供户型编辑器的最小公共接口。
+ */
+const PlanEditor = {
+  init,
+  isActive: () => editor.active,
+  syncOverlay() {
+    if (editor.active) {
+      drawDraft();
+      drawSelection();
+    }
+  },
+  syncRender() {
+    if (editor.active) {
+      drawDraft();
+      drawSelection();
+      renderPlanPanel();
+    }
+  }
+};
+
+window.PlanEditor = PlanEditor;
+PlanEditor.init();

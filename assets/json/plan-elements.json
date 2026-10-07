@@ -1,0 +1,74 @@
+{
+  "walls": [
+    {
+      "type": "n",
+      "name": "普通墙",
+      "glyph": "▰",
+      "hint": "水平 / 垂直吸附"
+    },
+    {
+      "type": "b",
+      "name": "承重墙",
+      "glyph": "▮",
+      "hint": "不可拆除"
+    },
+    {
+      "type": "e",
+      "name": "外墙",
+      "glyph": "▤",
+      "hint": "建筑外围护"
+    },
+    {
+      "type": "low",
+      "name": "矮墙",
+      "glyph": "▱",
+      "hint": "低墙 / 半墙"
+    }
+  ],
+  "windows": [
+    {
+      "type": "normal",
+      "name": "普通窗",
+      "glyph": "▥",
+      "hint": "标准窗洞"
+    },
+    {
+      "type": "floor",
+      "name": "落地窗",
+      "glyph": "▥",
+      "hint": "低窗台"
+    },
+    {
+      "type": "bay",
+      "name": "飘窗",
+      "glyph": "▥",
+      "hint": "外凸窗台"
+    }
+  ],
+  "doors": [
+    {
+      "type": "in-left",
+      "name": "内开 · 左铰链",
+      "glyph": "↙",
+      "hint": "拖出门洞"
+    },
+    {
+      "type": "in-right",
+      "name": "内开 · 右铰链",
+      "glyph": "↘",
+      "hint": "拖出门洞"
+    },
+    {
+      "type": "out-left",
+      "name": "外开 · 左铰链",
+      "glyph": "↖",
+      "hint": "拖出门洞"
+    },
+    {
+      "type": "out-right",
+      "name": "外开 · 右铰链",
+      "glyph": "↗",
+      "hint": "拖出门洞"
+    }
+  ]
+}
