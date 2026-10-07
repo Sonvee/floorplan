@@ -83,11 +83,16 @@ function ensurePlanData() {
       return normalized;
     });
   state.plan.rooms = (state.plan.rooms || []).filter(room => Array.isArray(room?.poly) && room.poly.length >= 3)
-    .map(room => ({
-      ...room,
-      id: room.id || nextId('r'),
-      poly: room.poly.map(point => [Number(point[0]), Number(point[1])])
-    }));
+    .map(room => {
+      const poly = room.poly.map(point => [Number(point[0]), Number(point[1])]);
+      const legacyRectangle = !room.shape && isAxisAlignedRectangle({poly});
+      return {
+        ...room,
+        id: room.id || nextId('r'),
+        shape: room.shape === 'rectangle' || legacyRectangle ? 'rectangle' : 'polygon',
+        poly
+      };
+    });
   state.rooms ||= {};
   state.plan.rooms.forEach(room => {
     state.rooms[room.id] ||= {name: room.name || room.id, mat: 'wood'};
@@ -99,6 +104,55 @@ function ensurePlanData() {
 
 function polygonCenter(polygon) {
   return polygon.reduce((sum, point) => [sum[0] + point[0] / polygon.length, sum[1] + point[1] / polygon.length], [0, 0]);
+}
+
+function roomRectBounds(room) {
+  if (!room?.poly?.length) return null;
+  const xs = room.poly.map(([x]) => x);
+  const ys = room.poly.map(([, y]) => y);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+function isAxisAlignedRectangle(room) {
+  if (!room?.poly || room.poly.length !== 4) return false;
+  const [x0, y0, x1, y1] = roomRectBounds(room);
+  const corners = new Set([[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(point => point.join(',')));
+  return room.poly.every(([x, y]) => corners.has(`${x},${y}`)) && corners.size === 4;
+}
+
+function isRoomRectangle(room) {
+  return room?.shape === 'rectangle' && isAxisAlignedRectangle(room);
+}
+
+function roomRectDimensions(room) {
+  const bounds = roomRectBounds(room);
+  if (!bounds) return {length: 0, width: 0};
+  return {length: bounds[2] - bounds[0], width: bounds[3] - bounds[1]};
+}
+
+function setRoomRectDimensions(room, length, width) {
+  const bounds = roomRectBounds(room);
+  if (!bounds) return;
+  const current = roomRectDimensions(room);
+  const nextLength = clampPositive(length, current.length, PLAN_RULES.minimumPrimitiveLength);
+  const nextWidth = clampPositive(width, current.width, PLAN_RULES.minimumPrimitiveLength);
+  const centerX = (bounds[0] + bounds[2]) / 2;
+  const centerY = (bounds[1] + bounds[3]) / 2;
+  const halfLength = nextLength / 2;
+  const halfWidth = nextWidth / 2;
+  room.poly = [
+    [centerX - halfLength, centerY - halfWidth],
+    [centerX + halfLength, centerY - halfWidth],
+    [centerX + halfLength, centerY + halfWidth],
+    [centerX - halfLength, centerY + halfWidth]
+  ];
+  room.at = polygonCenter(room.poly);
+}
+
+function roomRectDimensionMarkup(room) {
+  const dimensions = roomRectDimensions(room);
+  return `<label>长度<input type="number" id="planRoomLength" value="${Math.round(dimensions.length)}" min="${PLAN_RULES.minimumPrimitiveLength}" step="10"></label>
+    <label>宽度<input type="number" id="planRoomWidth" value="${Math.round(dimensions.width)}" min="${PLAN_RULES.minimumPrimitiveLength}" step="10"></label>`;
 }
 
 function screenToPlan(event) {
@@ -545,7 +599,11 @@ function drawDraft() {
   const draft = editor.draft;
   const line = 'stroke="#2f5d62" stroke-width="1.6" vector-effect="non-scaling-stroke"';
   let output = snapGuideMarkup();
-  if (draft.kind === 'room' && draft.points.length) {
+  if (draft.kind === 'room-rect' && draft.start && draft.current) {
+    const values = normalizeRect([draft.start.x, draft.start.y, draft.current.x, draft.current.y]);
+    output += `<rect x="${values[0]}" y="${values[1]}" width="${values[2] - values[0]}" height="${values[3] - values[1]}" fill="rgba(47,93,98,.08)" ${line} stroke-dasharray="6 4"/>`;
+    output += dimensionRectText(values, '#b5653a');
+  } else if (draft.kind === 'room' && draft.points.length) {
     output += `<polyline points="${draft.points.map(point => `${point[0]},${point[1]}`).join(' ')}" fill="rgba(47,93,98,.08)" ${line} stroke-dasharray="6 4"/>`;
     for (let index = 0; index < draft.points.length - 1; index++) {
       output += dimensionText({x: draft.points[index][0], y: draft.points[index][1]}, {x: draft.points[index + 1][0], y: draft.points[index + 1][1]});
@@ -631,10 +689,12 @@ function planPanelMarkup() {
     const room = ROOMS[selected.index];
     const settings = room && state.rooms[room.id];
     if (!room || !settings) return '';
-    return `<section><h3>房间属性</h3><div class="form"><label class="full">名称<input id="planRoomName" value="${esc(settings.name)}"></label></div>
+    const isRectangle = isRoomRectangle(room);
+    return `<section><h3>房间属性</h3><div class="form"><label class="full">名称<input id="planRoomName" value="${esc(settings.name)}"></label>
+      ${isRectangle ? roomRectDimensionMarkup(room) : ''}</div>
       <div class="muted" style="margin-top:8px">面积 ${fmt(area(room.poly))} m² · 周长 ${fmt(perim(room.poly), 1)} m</div>
       <div class="actions"><button class="btn danger" id="planDelete">删除房间</button><button class="btn" id="planBack">← 返回</button></div></section>
-      <section class="muted">拖动橙色顶点编辑轮廓。房间支持斜边，接近水平或垂直时才会吸附。</section>`;
+      <section class="muted">${isRectangle ? '矩形房间可以直接调整长度和宽度，也可以拖动橙色顶点。' : '拖动橙色顶点编辑轮廓。房间支持斜边，接近水平或垂直时才会吸附。'}</section>`;
   }
   if (selected.kind === 'wall') {
     const wall = WALLS[selected.index];
@@ -671,6 +731,15 @@ function selectPlan(selection) {
   renderPlanPanel();
 }
 
+function bindRoomDimensions(room) {
+  const length = $p('#planRoomLength');
+  const width = $p('#planRoomWidth');
+  if (!length || !width) return;
+  const update = () => commitPlan(snap(), () => setRoomRectDimensions(room, length.value, width.value));
+  length.onchange = update;
+  width.onchange = update;
+}
+
 function bindDimensions(prefix, entity, kind) {
   const axis = $p(`#${prefix}Axis`);
   const length = $p(`#${prefix}Length`);
@@ -698,6 +767,7 @@ function renderPlanPanel() {
       state.rooms[room.id].name = event.target.value.trim() || state.rooms[room.id].name;
       room.name = state.rooms[room.id].name;
     });
+    if (isRoomRectangle(room)) bindRoomDimensions(room);
   } else if (selected.kind === 'wall') {
     const wall = WALLS[selected.index];
     if (!wall) return;
@@ -843,6 +913,32 @@ function closeDrawingMode(selection = null) {
   drawDraft();
 }
 
+function finishRoomRect() {
+  const draft = editor.draft;
+  if (!draft.start || !draft.current) return;
+  const values = normalizeRect([draft.start.x, draft.start.y, draft.current.x, draft.current.y]);
+  if (values[2] - values[0] < PLAN_RULES.minimumPrimitiveLength
+    || values[3] - values[1] < PLAN_RULES.minimumPrimitiveLength) {
+    editor.draft = emptyDraft();
+    editor.guides = [];
+    drawDraft();
+    return;
+  }
+  const room = {
+    id: nextId('r'),
+    name: '新房间',
+    shape: 'rectangle',
+    poly: [[values[0], values[1]], [values[2], values[1]], [values[2], values[3]], [values[0], values[3]]],
+    counted: true,
+    at: polygonCenter([[values[0], values[1]], [values[2], values[1]], [values[2], values[3]], [values[0], values[3]]])
+  };
+  const before = snap();
+  state.plan.rooms.push(room);
+  state.rooms[room.id] = {name: room.name, mat: 'wood'};
+  closeDrawingMode({kind: 'room', index: state.plan.rooms.length - 1, id: room.id});
+  commitPlan(before, () => {});
+}
+
 function finishRoom() {
   const points = editor.draft.points.slice();
   if (points.length < 3) return;
@@ -851,6 +947,7 @@ function finishRoom() {
   const room = {
     id: nextId('r'),
     name: '新房间',
+    shape: 'polygon',
     poly: points,
     counted: true,
     at: polygonCenter(points)
@@ -889,6 +986,29 @@ function finishPrimitive() {
   commitPlan(before, () => {});
 }
 
+function moveRectangleVertex(room, pointIndex, point, basePolygon) {
+  const base = basePolygon || room.poly;
+  const opposite = base[(pointIndex + 2) % 4];
+  const next = snapRoomPoint(point, null, {
+    snapTolerance: PLAN_RULES.editSnapTolerance,
+    exclude: {kind: 'room', index: editor.drag?.roomIndex}
+  });
+  const minimum = PLAN_RULES.minimumPrimitiveLength;
+  let x = next.x;
+  let y = next.y;
+  if (pointIndex === 0 || pointIndex === 3) x = Math.min(x, opposite[0] - minimum);
+  else x = Math.max(x, opposite[0] + minimum);
+  if (pointIndex === 0 || pointIndex === 1) y = Math.min(y, opposite[1] - minimum);
+  else y = Math.max(y, opposite[1] + minimum);
+  const x0 = Math.min(x, opposite[0]);
+  const y0 = Math.min(y, opposite[1]);
+  const x1 = Math.max(x, opposite[0]);
+  const y1 = Math.max(y, opposite[1]);
+  room.poly = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  room.at = polygonCenter(room.poly);
+  return {x, y, geometry: next.geometry};
+}
+
 function moveSelected(point) {
   const drag = editor.drag;
   if (!drag) return;
@@ -911,15 +1031,20 @@ function moveSelected(point) {
   } else if (drag.kind === 'room-point') {
     const room = state.plan.rooms[drag.roomIndex];
     if (!room) return;
-    const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
-    const next = snapRoomPoint(point, {x: previous[0], y: previous[1]}, {
-      snapTolerance: PLAN_RULES.editSnapTolerance,
-      orthogonalAngle: PLAN_RULES.editOrthogonalAngle,
-      exclude: {kind: 'room', index: drag.roomIndex}
-    });
+    let next;
+    if (isRoomRectangle(room)) {
+      next = moveRectangleVertex(room, drag.pointIndex, point, drag.base);
+    } else {
+      const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
+      next = snapRoomPoint(point, {x: previous[0], y: previous[1]}, {
+        snapTolerance: PLAN_RULES.editSnapTolerance,
+        orthogonalAngle: PLAN_RULES.editOrthogonalAngle,
+        exclude: {kind: 'room', index: drag.roomIndex}
+      });
+      room.poly[drag.pointIndex] = [next.x, next.y];
+      room.at = polygonCenter(room.poly);
+    }
     updateSnapGuides(next);
-    room.poly[drag.pointIndex] = [next.x, next.y];
-    room.at = polygonCenter(room.poly);
     renderRooms();
     renderLabels();
     drawDraft();
@@ -1010,6 +1135,15 @@ function onPointerDown(event) {
   event.preventDefault();
   event.stopPropagation();
   const point = screenToPlan(event);
+  if (editor.mode === 'room-rect') {
+    const start = snapRoomPoint(point, null);
+    editor.draft.start = start;
+    editor.draft.current = start;
+    updateSnapGuides(start);
+    drawDraft();
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
   if (editor.mode === 'room') {
     editor.guides = [];
     const first = editor.draft.points[0];
@@ -1039,7 +1173,16 @@ function onPointerDown(event) {
   editor.guides = [];
   const vertex = selectedRoomVertex(point);
   if (vertex !== null) {
-    editor.drag = {kind: 'room-point', roomIndex: editor.selected.index, pointIndex: vertex, anchor: point, before: snap(), moved: false};
+    const selectedRoom = ROOMS[editor.selected.index];
+    editor.drag = {
+      kind: 'room-point',
+      roomIndex: editor.selected.index,
+      pointIndex: vertex,
+      anchor: point,
+      base: selectedRoom?.poly.map(([x, y]) => [x, y]),
+      before: snap(),
+      moved: false
+    };
     planSvg.setPointerCapture(event.pointerId);
     return;
   }
@@ -1073,7 +1216,11 @@ function onPointerMove(event) {
   event.preventDefault();
   event.stopPropagation();
   const point = screenToPlan(event);
-  if (editor.mode === 'room' && editor.draft.points.length) {
+  if (editor.mode === 'room-rect' && editor.draft.start) {
+    editor.draft.current = snapRoomPoint(point, null);
+    updateSnapGuides(editor.draft.current);
+    drawDraft();
+  } else if (editor.mode === 'room' && editor.draft.points.length) {
     const previous = editor.draft.points.at(-1);
     editor.draft.current = snapRoomPoint(point, {x: previous[0], y: previous[1]});
     updateSnapGuides(editor.draft.current);
@@ -1100,6 +1247,11 @@ function onPointerUp(event) {
   if (!editor.active) return;
   event.preventDefault();
   event.stopPropagation();
+  if (editor.mode === 'room-rect' && editor.draft.start) {
+    finishRoomRect();
+    releasePointer(event);
+    return;
+  }
   if (editor.draft.start && ['wall', 'window', 'door'].includes(editor.mode)) {
     finishPrimitive();
     releasePointer(event);
