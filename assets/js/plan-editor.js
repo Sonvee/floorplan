@@ -858,6 +858,7 @@ function onPointerDown(event) {
     planSvg.setPointerCapture(event.pointerId);
     return;
   }
+  selectPlan(null);
   editor.drag = {kind: 'pan', anchorScreen: [event.clientX, event.clientY], view: [view.x0, view.y0], moved: false};
   planSvg.setPointerCapture(event.pointerId);
 }
