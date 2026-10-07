@@ -1,4 +1,4 @@
-import {$, area, esc, fmt, loadJson, perim} from './utils.js';
+import {$, area, esc, fmt, loadJson, perim, planToolSVG} from './utils.js';
 import {
   DOORS,
   ROOMS,
@@ -693,13 +693,14 @@ function drawSelection() {
 }
 
 function syncPlanToolLabels() {
-  document.querySelectorAll('[data-plan-tool][data-plan-type]').forEach(button => {
-    const definition = PLAN_DEFINITIONS[button.dataset.planTool]?.[button.dataset.planType];
+  planTools.querySelectorAll('.plan-grid .plan-item[data-plan-tool]').forEach(button => {
+    const {planTool, planType} = button.dataset;
+    const icon = button.querySelector('b');
+    if (icon) icon.innerHTML = planToolSVG(planTool, planType);
+    const definition = PLAN_DEFINITIONS[planTool]?.[planType];
     if (!definition) return;
-    const glyph = button.querySelector('b');
     const label = button.querySelector('span');
     const hint = button.querySelector('small');
-    if (glyph) glyph.textContent = definition.glyph || '';
     if (label) label.textContent = definition.name || '';
     if (hint) hint.textContent = definition.hint || '';
   });

@@ -35,6 +35,79 @@ export const ln = (x1,y1,x2,y2,ex='') => `<line x1="${x1}" y1="${y1}" x2="${x2}"
 export const pa = (d,f='none',ex='') => `<path d="${d}" fill="${f}" ${ST} ${ex}/>`;
 export const DASH = 'stroke-dasharray="4 3"';
 
+/**
+ * 绘制户型工具的 SVG 图例，复用家具图例的矩形、线段与路径工具。
+ * 仅用于工具栏缩略图，不参与画布实体的几何计算和交互。
+ * @param {string} tool 工具类别：room-rect、room、wall、window、door
+ * @param {string} [type] 墙体、窗户或门的具体类型
+ * @returns {string} 使用统一 viewBox 的 SVG 图标；未知工具返回空字符串
+ */
+export function planToolSVG(tool, type) {
+  let content = '';
+  switch (tool) {
+    case 'room-rect':
+    case 'room': {
+      const points = tool === 'room-rect'
+        ? [[12, 8], [52, 8], [52, 40], [12, 40]]
+        : [[10, 8], [38, 8], [54, 22], [42, 40], [10, 40]];
+      content = pa(`M${points.map(point => point.join(' ')).join('L')}Z`, '#e2eeea');
+      content += points.map(([x, y]) => ec(x, y, 2.2, 2.2, '#fff')).join('');
+      break;
+    }
+    case 'wall': {
+      const color = {n: '#a7a195', b: '#b8412c', e: '#8f897d', low: '#e9e3d8'}[type];
+      content = rc(8, 18, 48, 12, color);
+      if (type === 'b') {
+        content += [14, 24, 34, 44].map(x => ln(x, 30, x + 10, 18)).join('');
+      } else if (type === 'e') {
+        content += rc(8, 15, 48, 3, '#e9e3d8') + ln(8, 26, 56, 26);
+      } else if (type === 'low') {
+        content += pa('M8 18L15 12H56L49 18Z', '#f7f3eb') + ln(49, 18, 49, 30);
+      }
+      break;
+    }
+    case 'window': {
+      if (type === 'sliding') {
+        // 与画布中的滑动门窗一样，用两条错位且重叠的窗扇表示。
+        content = rc(7, 16, 50, 16, '#e2dacb');
+        content += rc(7, 20, 27.5, 3, '#fff') + rc(29.5, 25, 27.5, 3, '#fff');
+      } else if (type === 'bay') {
+        // 缺少室内侧边框的三面窗，底座与窗扇作为统一图例显示。
+        content = rc(11, 12, 42, 28, '#e2dacb');
+        content += rc(11, 8, 42, 4, '#dceafa');
+        content += rc(7, 8, 4, 32, '#dceafa') + rc(53, 8, 4, 32, '#dceafa');
+        content += ln(25, 8, 25, 12) + ln(39, 8, 39, 12);
+        content += ln(7, 24, 11, 24) + ln(53, 24, 57, 24);
+      } else {
+        const bottom = type === 'floor' ? 41 : 33;
+        content = rc(11, 6, 42, bottom - 6, type === 'floor' ? '#c9edf8' : '#f7fbfd');
+        content += ln(25, 6, 25, bottom) + ln(39, 6, 39, bottom);
+        if (type === 'floor') {
+          content += rc(13, 8, 38, 31, 'none') + ln(7, 43, 57, 43);
+        } else {
+          content += ln(11, 19, 53, 19) + rc(8, 33, 48, 7, '#e2dacb');
+        }
+      }
+      break;
+    }
+    case 'door': {
+      const mirrorX = type?.endsWith('right') ? -1 : 1;
+      const mirrorY = type?.startsWith('out') ? -1 : 1;
+      const offsetX = mirrorX === -1 ? 64 : 0;
+      const offsetY = mirrorY === -1 ? 48 : 0;
+      const jambs = rc(8, 21, 14, 6, '#a7a195') + rc(42, 21, 14, 6, '#a7a195');
+      const threshold = rc(22, 23, 20, 2, '#e2dacb');
+      const leaf = rc(22, 4, 2, 20, '#fff');
+      const swing = pa('M22 4A20 20 0 0 1 42 24', 'none', DASH);
+      content = `<g transform="translate(${offsetX} ${offsetY}) scale(${mirrorX} ${mirrorY})">${jambs}${threshold}${leaf}${swing}</g>`;
+      break;
+    }
+    default:
+      return '';
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${content}</svg>`;
+}
+
 export function furnSVG(t,w,d,c){
   const x = -w/2, y = -d/2, m = Math.min(w,d);
   switch (t){
