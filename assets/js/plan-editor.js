@@ -644,6 +644,12 @@ function drawSelection() {
     if (room) {
       output += `<polygon points="${room.poly.map(point => point.join(',')).join(' ')}" fill="rgba(181,101,58,.08)" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
       room.poly.forEach((point, index) => {
+        const next = room.poly[(index + 1) % room.poly.length];
+        output += dimensionText(
+          {x: point[0], y: point[1]},
+          {x: next[0], y: next[1]},
+          '#b5653a'
+        );
         output += `<circle data-plan-handle="room-point" data-index="${index}" cx="${point[0]}" cy="${point[1]}" r="${8 / view.s}" fill="#fff" stroke="#b5653a" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
       });
     }
