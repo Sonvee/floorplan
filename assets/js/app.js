@@ -74,6 +74,71 @@ function load(){
   } catch(e) {}
   return null;
 }
+
+/**
+ * 将旧版本用“不可计入房间 + 三块普通窗”拼出的飘窗迁移为单个 bay 窗户。
+ * 仅处理明确标记为飘窗的旧房间，避免影响普通房间和用户已有窗户。
+ * @param {{rooms?: Array, wins?: Array}} plan 户型数据
+ * @param {Record<string, {name?: string}>} roomSettings 房间设置
+ */
+function migrateLegacyBayRooms(plan, roomSettings){
+  const rooms = Array.isArray(plan.rooms) ? plan.rooms : [];
+  const windows = Array.isArray(plan.wins) ? plan.wins : [];
+  const legacyRooms = rooms.filter(room => {
+    const name = room?.name || roomSettings?.[room?.id]?.name || '';
+    return room?.counted === false && (String(name).includes('飘窗') || /^bay/i.test(room?.id || ''));
+  });
+  if (!legacyRooms.length) return;
+
+  const consumedWindows = new Set();
+  const migratedWindows = [];
+  const expand = 240;
+  const thickness = 50;
+  const boundsOf = poly => {
+    const xs = poly.map(([x]) => x), ys = poly.map(([, y]) => y);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
+  const intersects = (a, b) => !(a[2] < b[0] - expand || a[0] > b[2] + expand
+    || a[3] < b[1] - expand || a[1] > b[3] + expand);
+
+  legacyRooms.forEach(room => {
+    if (!Array.isArray(room.poly) || room.poly.length < 3) return;
+    const roomBounds = boundsOf(room.poly);
+    const candidates = windows
+      .map((win, index) => ({win, index}))
+      .filter(({win}) => Array.isArray(win) && win.length >= 4 && intersects(win, roomBounds));
+    if (!candidates.length) return;
+
+    candidates.forEach(({index}) => consumedWindows.add(index));
+    const union = candidates.reduce((acc, {win}) => [
+      Math.min(acc[0], win[0]), Math.min(acc[1], win[1]),
+      Math.max(acc[2], win[2]), Math.max(acc[3], win[3])
+    ], [...candidates[0].win.slice(0, 4)]);
+    const [x0, y0, x1, y1] = roomBounds;
+    const horizontal = x1 - x0 >= y1 - y0;
+    const outwardPositive = horizontal ? union[3] > y1 : union[2] > x1;
+    const outwardNegative = horizontal ? union[1] < y0 : union[0] < x0;
+    const side = outwardPositive ? 1 : outwardNegative ? -1 : -1;
+    const back = horizontal
+      ? (side === 1 ? union[1] : union[3])
+      : (side === 1 ? union[0] : union[2]);
+    const outer = horizontal
+      ? (side === 1 ? union[3] : union[1])
+      : (side === 1 ? union[2] : union[0]);
+    const spanStart = horizontal ? x0 : y0;
+    const spanEnd = horizontal ? x1 : y1;
+    const opening = horizontal
+      ? [spanStart, Math.min(back, back + side * thickness), spanEnd, Math.max(back, back + side * thickness)]
+      : [Math.min(back, back + side * thickness), spanStart, Math.max(back, back + side * thickness), spanEnd];
+    const depth = Math.max(240, Math.abs(outer - (back + side * thickness)));
+    migratedWindows.push([...opening, 'bay', horizontal ? 'h' : 'v', side, depth]);
+  });
+
+  plan.wins = windows.filter((_, index) => !consumedWindows.has(index)).concat(migratedWindows);
+  plan.rooms = rooms.filter(room => !legacyRooms.includes(room));
+  legacyRooms.forEach(room => { if (room?.id) delete roomSettings[room.id]; });
+}
+
 function fixState(s){
   const d = defaultState(), p = s.plan || {};
   const plan = {
@@ -83,6 +148,8 @@ function fixState(s){
     slides: Array.isArray(p.slides) ? p.slides : d.plan.slides,
     rooms: Array.isArray(p.rooms) ? p.rooms : d.plan.rooms
   };
+  s.rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
+  migrateLegacyBayRooms(plan, s.rooms);
   s.plan = {...plan, dimensions:Array.isArray(p.dimensions) ? p.dimensions : deriveDimensions(plan)};
   const roomDefaults = {}; s.plan.rooms.forEach(r => roomDefaults[r.id] = {name:r.name || r.id, mat:r.mat || 'wood'});
   s.rooms = Object.assign(roomDefaults, s.rooms || {});
@@ -296,19 +363,65 @@ function renderWalls(){
   }).join('');
 }
 
+/**
+ * 生成 2D 窗户图形。飘窗使用“缺一边”的 U 形三面窗，
+ * 不再用上下两条断开的装饰线模拟。
+ */
+function planWindowMarkup(values, type = 'normal', opacity = 1) {
+  const [x0, y0, x1, y1] = values;
+  const width = x1 - x0;
+  const height = y1 - y0;
+  const fill = type === 'floor' ? '#c9edf8' : type === 'bay' ? '#dceafa' : '#f7fbfd';
+  const stroke = '#4f7394';
+  const strokeWidth = type === 'floor' ? 2 : 1;
+  const common = `fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeWidth}" vector-effect="non-scaling-stroke"`;
+  if (type !== 'bay') {
+    let output = `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" ${common}/>`;
+    if (width >= height) [1 / 3, 2 / 3].forEach(t => {
+      output += `<line x1="${x0 + width * t}" y1="${y0}" x2="${x0 + width * t}" y2="${y1}" stroke="${stroke}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    });
+    else [1 / 3, 2 / 3].forEach(t => {
+      output += `<line x1="${x0}" y1="${y0 + height * t}" x2="${x1}" y2="${y0 + height * t}" stroke="${stroke}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    });
+    if (type === 'floor') output += `<rect x="${x0 + width * .08}" y="${y0 + height * .08}" width="${width * .84}" height="${height * .84}" fill="none" stroke="#8cc9dc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    return output;
+  }
+
+  const frame = Math.max(24, Math.min(width, height) * .14);
+  const horizontal = width >= height;
+  const side = Number(values[6]) === 1 ? 1 : -1;
+  const storedDepth = Number(values[7]);
+  const depth = Number.isFinite(storedDepth) && storedDepth > 0
+    ? storedDepth
+    : 570;
+  if (horizontal) {
+    const backY = side === 1 ? y1 : y0;
+    const frontY = backY + side * depth;
+    const frontStart = Math.min(backY, frontY);
+    return `<g ${common}>
+      <rect x="${x0}" y="${side === 1 ? frontY - frame : frontY}" width="${width}" height="${frame}"/>
+      <rect x="${x0}" y="${frontStart}" width="${frame}" height="${Math.abs(frontY - backY)}"/>
+      <rect x="${x1 - frame}" y="${frontStart}" width="${frame}" height="${Math.abs(frontY - backY)}"/>
+      <path d="M${x0} ${backY}V${frontY}H${x1}V${backY}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+    </g>`;
+  }
+
+  const backX = side === 1 ? x1 : x0;
+  const frontX = backX + side * depth;
+  const frontStart = Math.min(backX, frontX);
+  return `<g ${common}>
+    <rect x="${side === 1 ? frontX - frame : frontX}" y="${y0}" width="${frame}" height="${height}"/>
+    <rect x="${frontStart}" y="${y0}" width="${Math.abs(frontX - backX)}" height="${frame}"/>
+    <rect x="${frontStart}" y="${y1 - frame}" width="${Math.abs(frontX - backX)}" height="${frame}"/>
+    <path d="M${backX} ${y0}H${frontX}V${y1}H${backX}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+  </g>`;
+}
+window.planWindowMarkup = planWindowMarkup;
 function renderOpenings(){
-  const WS = 'stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"';
   let s = '';
-  WINS.forEach(([x0,y0,x1,y1,type='normal'], index) => {
-    const w = x1-x0, h = y1-y0;
-    const fill = type === 'floor' ? '#c9edf8' : type === 'bay' ? '#dceafa' : '#f7fbfd';
-    const strokeWidth = type === 'floor' ? 2 : 1;
-    s += `<g data-window="${index}"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${fill}" ${WS} stroke-width="${strokeWidth}"/>`;
-    if (w >= h) [1/3,2/3].forEach(t => s += `<line x1="${x0+w*t}" y1="${y0}" x2="${x0+w*t}" y2="${y1}" ${WS}/>`);
-    else [1/3,2/3].forEach(t => s += `<line x1="${x0}" y1="${y0+h*t}" x2="${x1}" y2="${y0+h*t}" ${WS}/>`);
-    if (type === 'floor') s += `<rect x="${x0+w*.08}" y="${y0+h*.08}" width="${w*.84}" height="${h*.84}" fill="none" stroke="#8cc9dc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    if (type === 'bay') s += `<path d="M${x0} ${y0}L${x0+w*.12} ${y0-h*.18}H${x1-w*.12}L${x1} ${y0}M${x0} ${y1}L${x0+w*.12} ${y1+h*.18}H${x1-w*.12}L${x1} ${y1}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
-    s += '</g>';
+  WINS.forEach((win, index) => {
+    const [x0, y0, x1, y1, type = 'normal'] = win;
+    s += `<g data-window="${index}">${planWindowMarkup(win, type)}</g>`;
   });
   const DS = 'stroke="#3d3a34" stroke-width="1" vector-effect="non-scaling-stroke"';
   DOORS.forEach((d, index) => {

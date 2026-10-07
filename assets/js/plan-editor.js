@@ -14,11 +14,12 @@ const PLAN_RULES = {
   orthogonalAngle: 10,
   editOrthogonalAngle: 3,
   editSnapTolerance: 4,
-  wallThickness: 180,
-  windowThickness: 160,
-  floorWindowThickness: 220,
-  bayWindowThickness: 260,
-  doorThickness: 140,
+  wallThickness: 240,
+  windowThickness: 240,
+  floorWindowThickness: 240,
+  bayWindowThickness: 240,
+  bayWindowDepth: 570,
+  doorThickness: 240,
   minimumPrimitiveLength: 100,
   minimumDoorLength: 500
 };
@@ -64,17 +65,22 @@ function normalizeRect(values) {
   return [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)];
 }
 
-function normalizeRectEntity(entity, type, fallbackType) {
+function normalizeRectEntity(entity, kind, type, fallbackType) {
   const values = normalizeRect(entity.slice(0, 4));
-  return [...values, type(entity[4]) || fallbackType, normalizeAxis(entity[5], values)];
+  const normalized = [...values, type(entity[4]) || fallbackType, normalizeAxis(entity[5], values)];
+  if (kind === 'window' && normalized[4] === 'bay') {
+    normalized[6] = Number(entity[6]) === 1 ? 1 : -1;
+    normalized[7] = Number(entity[7]) > 0 ? Number(entity[7]) : PLAN_RULES.bayWindowDepth;
+  }
+  return normalized;
 }
 
 function ensurePlanData() {
   state.plan ||= {walls: [], wins: [], doors: [], slides: [], rooms: [], dimensions: []};
   state.plan.walls = (state.plan.walls || []).filter(Array.isArray)
-    .map(wall => normalizeRectEntity(wall, safeWallType, 'n'));
+    .map(wall => normalizeRectEntity(wall, 'wall', safeWallType, 'n'));
   state.plan.wins = (state.plan.wins || []).filter(Array.isArray)
-    .map(win => normalizeRectEntity(win, safeWindowType, 'normal'));
+    .map(win => normalizeRectEntity(win, 'window', safeWindowType, 'normal'));
   state.plan.doors = (state.plan.doors || []).filter(door => door && Array.isArray(door.rect))
     .map(door => {
       const normalized = {...door, rect: normalizeRect(door.rect), swing: safeDoorSwing(door.swing), type: door.type || 'hinged'};
@@ -199,7 +205,7 @@ function planSnapSegments(exclude = null) {
   WALLS.forEach((wall, index) => {
     if (!state.demolished.includes(`w${index}`)) addRect(wall, {kind: 'wall', index});
   });
-  WINS.forEach((win, index) => addRect(win, {kind: 'window', index}));
+  WINS.forEach((win, index) => addRect(windowFootprintRect(win), {kind: 'window', index}));
   DOORS.forEach((door, index) => addRect(door.rect, {kind: 'door', index}));
   SLIDES.forEach((slide, index) => addRect(slide.rect, {kind: 'slide', index}));
   ROOMS.forEach((room, roomIndex) => {
@@ -484,6 +490,28 @@ function updateDoorGeometry(door) {
     : [inward ? 1 : -1, 0];
 }
 
+/**
+ * 返回窗户可交互的平面包围盒；飘窗包含向外凸出的三面窗区域。
+ * @param {number[]} values 窗户实体数组
+ * @returns {number[]} 规范化后的 [x0, y0, x1, y1]
+ */
+function windowFootprintRect(values) {
+  const rect = normalizeRect(values.slice(0, 4));
+  if (values[4] !== 'bay') return rect;
+  const [x0, y0, x1, y1] = rect;
+  const axis = normalizeAxis(values[5], rect);
+  const side = Number(values[6]) === 1 ? 1 : -1;
+  const depth = Number(values[7]) > 0 ? Number(values[7]) : PLAN_RULES.bayWindowDepth;
+  if (axis === 'h') {
+    const back = side === 1 ? y1 : y0;
+    const front = back + side * depth;
+    return [x0, Math.min(back, front), x1, Math.max(back, front)];
+  }
+  const back = side === 1 ? x1 : x0;
+  const front = back + side * depth;
+  return [Math.min(back, front), y0, Math.max(back, front), y1];
+}
+
 function pointInPolygon(point, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -507,7 +535,7 @@ function hitTest(point) {
     if (pointInRect(point, DOORS[index].rect, doorPadding)) return {kind: 'door', index};
   }
   for (let index = WINS.length - 1; index >= 0; index--) {
-    if (pointInRect(point, WINS[index], openingPadding)) return {kind: 'window', index};
+    if (pointInRect(point, windowFootprintRect(WINS[index]), openingPadding)) return {kind: 'window', index};
   }
   for (let index = WALLS.length - 1; index >= 0; index--) {
     if (pointInRect(point, WALLS[index], openingPadding)) return {kind: 'wall', index};
@@ -557,25 +585,7 @@ function dimensionRectText(values, color = '#b5653a') {
 }
 
 function drawWindowPreview(values, type, opacity = 1) {
-  const [x0, y0, x1, y1] = values;
-  const width = x1 - x0;
-  const height = y1 - y0;
-  const fill = type === 'floor' ? '#c9edf8' : type === 'bay' ? '#dceafa' : '#f7fbfd';
-  const strokeWidth = type === 'floor' ? 2 : 1;
-  let output = `<rect x="${x0}" y="${y0}" width="${width}" height="${height}" fill="${fill}" fill-opacity="${opacity}" stroke="#4f7394" stroke-width="${strokeWidth}" vector-effect="non-scaling-stroke"/>`;
-  if (width >= height) {
-    output += `<line x1="${x0 + width / 3}" y1="${y0}" x2="${x0 + width / 3}" y2="${y1}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    output += `<line x1="${x0 + width * 2 / 3}" y1="${y0}" x2="${x0 + width * 2 / 3}" y2="${y1}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-  } else {
-    output += `<line x1="${x0}" y1="${y0 + height / 3}" x2="${x1}" y2="${y0 + height / 3}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-    output += `<line x1="${x0}" y1="${y0 + height * 2 / 3}" x2="${x1}" y2="${y0 + height * 2 / 3}" stroke="#4f7394" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-  }
-  if (type === 'floor') {
-    output += `<rect x="${x0 + width * .08}" y="${y0 + height * .08}" width="${width * .84}" height="${height * .84}" fill="none" stroke="#8cc9dc" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
-  }
-  if (type === 'bay') {
-    output += `<path d="M${x0} ${y0}L${x0 + width * .12} ${y0 - height * .18}H${x1 - width * .12}L${x1} ${y0}M${x0} ${y1}L${x0 + width * .12} ${y1 + height * .18}H${x1 - width * .12}L${x1} ${y1}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
-  }
+  const output = window.planWindowMarkup?.(values, type, opacity) || '';
   return `<g data-plan-window-preview="${type}">${output}</g>`;
 }
 
@@ -654,7 +664,7 @@ function drawSelection() {
       });
     }
   } else {
-    const entity = selected.kind === 'wall' ? WALLS[selected.index] : selected.kind === 'window' ? WINS[selected.index] : DOORS[selected.index]?.rect;
+    const entity = selected.kind === 'wall' ? WALLS[selected.index] : selected.kind === 'window' ? windowFootprintRect(WINS[selected.index]) : DOORS[selected.index]?.rect;
     if (entity) output += `<rect x="${entity[0]}" y="${entity[1]}" width="${entity[2] - entity[0]}" height="${entity[3] - entity[1]}" fill="none" stroke="#b5653a" stroke-width="2" stroke-dasharray="6 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
   }
   selectionLayer.innerHTML = output;
@@ -688,6 +698,16 @@ function dimensionMarkup(prefix, entity, kind) {
     <label>宽度<input type="number" id="${prefix}Width" value="${Math.round(dimensions.width)}" min="20" step="10"></label>`;
 }
 
+function bayWindowMarkup(windowEntity) {
+  const axis = entityAxis(windowEntity, 'window');
+  const side = Number(windowEntity[6]) === 1 ? 1 : -1;
+  const positiveLabel = axis === 'h' ? '向下' : '向右';
+  const negativeLabel = axis === 'h' ? '向上' : '向左';
+  const depth = Number(windowEntity[7]) > 0 ? windowEntity[7] : PLAN_RULES.bayWindowDepth;
+  return `<label>凸出方向<select id="planBaySide"><option value="1"${side === 1 ? ' selected' : ''}>${positiveLabel}</option><option value="-1"${side === -1 ? ' selected' : ''}>${negativeLabel}</option></select></label>
+    <label>飘出进深<input type="number" id="planBayDepth" value="${Math.round(depth)}" min="240" step="10"></label>`;
+}
+
 function planPanelMarkup() {
   const selected = editor.selected;
   if (!selected) return `<section><h3>户型编辑</h3><div class="muted">点击房间、墙体、窗户或门可以编辑属性。空白区域可以拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
@@ -713,7 +733,8 @@ function planPanelMarkup() {
     const win = WINS[selected.index];
     if (!win) return '';
     return `<section><h3>窗户属性</h3><div class="form"><label class="full">类型<select id="planWindowType">${optionMarkup(WINDOW_TYPES)}</select></label>
-      ${dimensionMarkup('planWindow', win, 'window')}</div>
+      ${dimensionMarkup('planWindow', win, 'window')}
+      ${win[4] === 'bay' ? bayWindowMarkup(win) : ''}</div>
       <div class="actions"><button class="btn danger" id="planDelete">删除窗户</button><button class="btn" id="planBack">← 返回</button></div></section>`;
   }
   const door = DOORS[selected.index];
@@ -786,8 +807,22 @@ function renderPlanPanel() {
     if (!win) return;
     const type = $p('#planWindowType');
     type.value = win[4];
-    type.onchange = event => commitPlan(snap(), () => win[4] = safeWindowType(event.target.value));
+    type.onchange = event => commitPlan(snap(), () => {
+      win[4] = safeWindowType(event.target.value);
+      if (win[4] === 'bay') {
+        win[6] = Number(win[6]) === 1 ? 1 : -1;
+        win[7] = Number(win[7]) > 0 ? Number(win[7]) : PLAN_RULES.bayWindowDepth;
+      } else {
+        win.length = 6;
+      }
+    });
     bindDimensions('planWindow', win, 'window');
+    if (win[4] === 'bay') {
+      const side = $p('#planBaySide');
+      const depth = $p('#planBayDepth');
+      side.onchange = event => commitPlan(snap(), () => win[6] = Number(event.target.value) === 1 ? 1 : -1);
+      depth.onchange = event => commitPlan(snap(), () => win[7] = clampPositive(event.target.value, PLAN_RULES.bayWindowDepth, 240));
+    }
   } else {
     const door = DOORS[selected.index];
     if (!door) return;
@@ -981,7 +1016,10 @@ function finishPrimitive() {
     state.plan.walls.push([...segment.slice(0, 4), safeWallType(draft.type), segment[4]]);
     selection = {kind: 'wall', index: state.plan.walls.length - 1};
   } else if (draft.kind === 'window') {
-    state.plan.wins.push([...segment.slice(0, 4), safeWindowType(draft.type), segment[4]]);
+    const type = safeWindowType(draft.type);
+    const windowEntity = [...segment.slice(0, 4), type, segment[4]];
+    if (type === 'bay') windowEntity.push(-1, PLAN_RULES.bayWindowDepth);
+    state.plan.wins.push(windowEntity);
     selection = {kind: 'window', index: state.plan.wins.length - 1};
   } else {
     const door = createDoor(draft.start, draft.current, draft.type);
@@ -1072,7 +1110,7 @@ function moveSelected(point) {
     drawDraft();
   } else if (drag.kind === 'entity') {
     const kind = drag.target.kind;
-    const baseRect = kind === 'door' ? drag.base.rect : drag.base;
+    const baseRect = kind === 'door' ? drag.base.rect : kind === 'window' ? windowFootprintRect(drag.base) : drag.base;
     const translation = snapEntityTranslation(drag.target, baseRect, point, drag.anchor);
     const {dx, dy} = translation;
     updateSnapGuides(translation.guide || {x: point.x, y: point.y});

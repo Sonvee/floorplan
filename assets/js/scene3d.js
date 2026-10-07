@@ -778,6 +778,106 @@ function wallBox([x0, y0, x1, y1], yb, yt, m){
 const edgeMat = new THREE.LineBasicMaterial({color:0x6f675b}), skirtMat = new THREE.MeshStandardMaterial({color:'#8b7f6e', roughness:.6});
 function shapeOf(poly, flip){ const s = new THREE.Shape(); poly.forEach(([x, y], i) => s[i ? 'lineTo' : 'moveTo'](wx(x), flip ? wz(y) : -wz(y))); return s; }
 
+const WINDOW_PROFILES = {
+  normal: {sill: .9, head: 2.4},
+  floor: {sill: .08, head: 2.55},
+  bay: {sill: .45, head: 2.4}
+};
+
+function windowProfile(type){ return WINDOW_PROFILES[type] || WINDOW_PROFILES.normal; }
+
+function addWindowPane(width, height, depth, x, y, z){
+  const pane = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), glassMat);
+  pane.position.set(x, y + height / 2, z);
+  archUp.add(pane);
+  return pane;
+}
+
+function addWindowFrame(width, height, depth, x, y, z, material = frameMat){
+  const frame = box(width, height, depth, material, x, y, z);
+  archUp.add(frame);
+  return frame;
+}
+
+/**
+ * 构建带底座的三面飘窗；values[6]/values[7]分别保存凸出方向和进深。
+ * @param {number[]} values 窗户矩形及飘窗扩展参数
+ * @param {number} top 当前剖切高度
+ * @param {{sill: number, head: number}} profile 窗型高度配置
+ */
+function buildBayWindow(values, top, profile){
+  const [x0, y0, x1, y1] = values;
+  const side = Number(values[6]) === 1 ? 1 : -1;
+  const gTop = Math.min(profile.head, top);
+  if (gTop <= profile.sill) return;
+  const width = M(x1 - x0), length = M(y1 - y0), frame = .045;
+  const horizontal = x1 - x0 >= y1 - y0;
+  const openingDepth = M(Number(values[7]) || 0);
+  const depth = openingDepth > 0 ? openingDepth : .57;
+  const glassHeight = gTop - profile.sill;
+  const sillMat = mat('#d8d0c0', {roughness:.45});
+  const bayBaseMat = mat('#e9e4da', {roughness:.82});
+
+  if (horizontal) {
+    const left = wx(x0), right = wx(x1), back = wz(side === 1 ? y1 : y0);
+    const front = back + side * depth, center = (left + right) / 2, sideCenter = (back + front) / 2;
+    addWindowPane(width, glassHeight, .018, center, profile.sill, front);
+    addWindowFrame(width + .12, profile.sill, depth + .12, center, 0, sideCenter, bayBaseMat);
+    addWindowPane(.018, glassHeight, depth, left, profile.sill, sideCenter);
+    addWindowPane(.018, glassHeight, depth, right, profile.sill, sideCenter);
+    addWindowFrame(width + frame, frame, .06, center, profile.sill, front);
+    addWindowFrame(width + frame, frame, .06, center, gTop - frame, front);
+    [left, right].forEach(x => {
+      addWindowFrame(frame, glassHeight, frame, x, profile.sill, front);
+      addWindowFrame(.06, frame, depth, x, profile.sill, sideCenter);
+      addWindowFrame(.06, frame, depth, x, gTop - frame, sideCenter);
+      addWindowFrame(frame, glassHeight, frame, x, profile.sill, back);
+    });
+    addWindowFrame(width + .12, .08, depth + .12, center, Math.max(0, profile.sill - .08), sideCenter, sillMat);
+    return;
+  }
+
+  const back = wx(side === 1 ? x1 : x0), front = back + side * depth;
+  const topZ = wz(y0), bottomZ = wz(y1), centerZ = (topZ + bottomZ) / 2, sideCenter = (back + front) / 2;
+  addWindowFrame(depth + .12, profile.sill, length + .12, sideCenter, 0, centerZ, bayBaseMat);
+  addWindowPane(.018, glassHeight, length, front, profile.sill, centerZ);
+  addWindowPane(depth, glassHeight, .018, sideCenter, profile.sill, topZ);
+  addWindowPane(depth, glassHeight, .018, sideCenter, profile.sill, bottomZ);
+  addWindowFrame(.06, frame, length + frame, front, profile.sill, centerZ);
+  addWindowFrame(.06, frame, length + frame, front, gTop - frame, centerZ);
+  [topZ, bottomZ].forEach(z => {
+    addWindowFrame(depth, frame, .06, sideCenter, profile.sill, z);
+    addWindowFrame(depth, frame, .06, sideCenter, gTop - frame, z);
+    addWindowFrame(.06, glassHeight, frame, front, profile.sill, z);
+    addWindowFrame(.06, glassHeight, frame, back, profile.sill, z);
+  });
+  addWindowFrame(depth + .12, .08, length + .12, sideCenter, Math.max(0, profile.sill - .08), centerZ, sillMat);
+}
+
+/**
+ * 构建普通窗或落地窗；两者共用框架，但由 profile 控制窗台和窗顶高度。
+ * @param {number[]} values 窗户矩形
+ * @param {number} top 当前剖切高度
+ * @param {{sill: number, head: number}} profile 窗型高度配置
+ */
+function buildStandardWindow([x0, y0, x1, y1], top, profile){
+  const gTop = Math.min(profile.head, top);
+  if (gTop <= profile.sill) return;
+  const horizontal = x1 - x0 >= y1 - y0;
+  const length = M(horizontal ? x1 - x0 : y1 - y0);
+  const height = gTop - profile.sill;
+  const cx = wx((x0 + x1) / 2), cz = wz((y0 + y1) / 2);
+  addWindowPane(horizontal ? length : .018, height, horizontal ? .018 : length, cx, profile.sill, cz);
+  const divisions = Math.max(1, Math.round(length / .9));
+  for (let index = 0; index <= divisions; index++) {
+    const offset = -length / 2 + index * length / divisions;
+    addWindowFrame(horizontal ? .04 : .06, height, horizontal ? .06 : .04,
+      cx + (horizontal ? offset : 0), profile.sill, cz + (horizontal ? 0 : offset));
+  }
+  [profile.sill + .02, gTop - .02].forEach(y => {
+    addWindowFrame(horizontal ? length : .06, .04, horizontal ? .06 : length, cx, y, cz);
+  });
+}
 function buildArch(){
   clearGroup(archFloor); clearGroup(archUp); lampG.clear(); doors.length = 0; colliders = [];
   const top = opt.cut;
@@ -806,17 +906,14 @@ function buildArch(){
   // 门洞、飘窗洞口上方过梁
   [...DOORS.map(d => [d.rect, 2.1]), ...SLIDES.map(s => [s.rect, s.v ? 2.4 : 2.1])]
     .forEach(([r, h]) => { if (top > h) wallBox(r, h, top); });
-  WINS.forEach((r, i) => {
-    const sill = i === 0 ? 1.4 : i >= 6 ? .45 : .9, head = 2.4;
-    wallBox(r, 0, Math.min(sill, top)); if (top > head) wallBox(r, head, top);
+  WINS.forEach(r => {
+    const type = r[4] || 'normal';
+    const profile = windowProfile(type);
+    wallBox(r, 0, Math.min(profile.sill, top));
+    if (top > profile.head) wallBox(r, profile.head, top);
     colliders.push([wx(r[0]), wz(r[1]), wx(r[2]), wz(r[3])]);
-    const gTop = Math.min(head, top); if (gTop <= sill) return;
-    const [x0, y0, x1, y1] = r, hz = (x1-x0) >= (y1-y0), L = M(hz ? x1-x0 : y1-y0), gh = gTop - sill, cx = wx((x0+x1)/2), cz = wz((y0+y1)/2);
-    const pane = new THREE.Mesh(new THREE.BoxGeometry(hz ? L : .01, gh, hz ? .01 : L), glassMat); pane.position.set(cx, sill + gh/2, cz); archUp.add(pane);
-    const n = Math.max(1, Math.round(L/.9));
-    for (let k = 0; k <= n; k++){ const t = -L/2 + k*L/n, mu = new THREE.Mesh(new THREE.BoxGeometry(hz ? .04 : .06, gh, hz ? .06 : .04), frameMat);
-      mu.position.set(cx + (hz ? t : 0), sill + gh/2, cz + (hz ? 0 : t)); mu.castShadow = true; archUp.add(mu); }
-    [sill + .02, gTop - .02].forEach(y => { const tr = new THREE.Mesh(new THREE.BoxGeometry(hz ? L : .06, .04, hz ? .06 : L), frameMat); tr.position.set(cx, y, cz); archUp.add(tr); });
+    if (type === 'bay') buildBayWindow(r, top, profile);
+    else buildStandardWindow(r, top, profile);
   });
   DOORS.forEach(d => {
     const pivot = new THREE.Group(), L = M(d.len), dh = Math.min(2.05, top);
