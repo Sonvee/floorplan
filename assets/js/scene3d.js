@@ -906,8 +906,10 @@ function buildStandardWindow([x0, y0, x1, y1], top, profile){
  * @param {boolean} v 是否沿 Y 轴排列窗扇
  * @param {number} top 当前剖切高度（米）
  */
-function buildSlidingWindow(rect, v, top){
-  const paneHeight = Math.min(v ? 2.4 : 2.1, top);
+const SLIDING_WINDOW_HEAD = 2.4;
+
+function buildSlidingWindow(rect, v, top, head = v ? SLIDING_WINDOW_HEAD : 2.1){
+  const paneHeight = Math.min(head, top);
   if (paneHeight <= .001) return;
   slidingWindowPanels(rect, v).forEach(panel => {
     const width = M(panel.width);
@@ -978,9 +980,11 @@ function buildArch(){
     const type = r[4] || 'normal';
     if (type === 'sliding') {
       const vertical = r[5] === 'v' || (r[5] !== 'h' && r[3] - r[1] > r[2] - r[0]);
-      const head = vertical ? 2.4 : 2.1;
+      // 新绘制的滑动门窗按落地门窗处理，水平/垂直方向统一到 2.4m。
+      // 样例中的 SLIDES 仍保留原有横向 2.1m 的门窗高度，避免改变旧方案。
+      const head = SLIDING_WINDOW_HEAD;
       if (top > head) wallBox(r, head, top);
-      buildSlidingWindow(r, vertical, top);
+      buildSlidingWindow(r, vertical, top, head);
       return;
     }
     const profile = windowProfile(type);
