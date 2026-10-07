@@ -32,7 +32,6 @@ header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 1
 .btn:hover{background:#f2ece2}
 .btn.on{background:var(--ink);color:#fff}
 .btn.chip.on{background:var(--accent-soft);color:var(--accent)}
-#langSel .btn{min-width:32px;font-weight:500}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.primary:hover{background:#9f5530}
 .btn.danger{color:#b3372a}
@@ -225,78 +224,73 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
 <div class="app">
   <header>
     <div class="grp" id="paneBtns">
-      <button class="btn chip" id="tgLib" data-en="◧ Library">◧ 家具库</button>
-      <button class="btn chip" id="tgPanel" data-en="Properties ◨">属性 ◨</button>
+      <button class="btn chip" id="tgLib">◧ 家具库</button>
+      <button class="btn chip" id="tgPanel">属性 ◨</button>
     </div>
-    <div class="brand"><b data-en="3BR 2LR 2BA · Interior Design">三室两厅两卫 · 装修设计</b><span id="subtitle">原始户型 1:60 · 尺寸单位 mm</span></div>
-    <div class="grp seg" id="viewSeg" title="切换 2D / 3D (T)" data-en-title="Switch 2D / 3D (T)">
+    <div class="brand"><b>三室两厅两卫 · 装修设计</b><span id="subtitle">原始户型 1:60 · 尺寸单位 mm</span></div>
+    <div class="grp seg" id="viewSeg" title="切换 2D / 3D (T)">
       <span class="pill"></span>
-      <button class="btn" data-view="2d" data-en="2D Plan">2D 平面</button>
-      <button class="btn" data-view="3d" data-en="3D Scene">3D 场景</button>
+      <button class="btn" data-view="2d">2D 平面</button>
+      <button class="btn" data-view="3d">3D 场景</button>
     </div>
     <div class="grp only2d" id="tools">
-      <button class="btn on" data-tool="select" title="选择 / 移动 (V)" data-en-title="Select / Move (V)" data-en="Select">选择</button>
-      <button class="btn" data-tool="measure" title="测量 (M)" data-en-title="Measure (M)" data-en="Measure">测量</button>
-      <button class="btn" data-tool="demolish" title="拆改非承重墙 (X)" data-en-title="Demolish non-bearing walls (X)" data-en="Demolish">拆改墙体</button>
+      <button class="btn on" data-tool="select" title="选择 / 移动 (V)">选择</button>
+      <button class="btn" data-tool="measure" title="测量 (M)">测量</button>
+      <button class="btn" data-tool="demolish" title="拆改非承重墙 (X)">拆改墙体</button>
     </div>
     <div class="grp only2d">
-      <button class="btn" id="zoomOut" title="缩小" data-en-title="Zoom out">−</button>
-      <button class="btn" id="zoomIn" title="放大" data-en-title="Zoom in">＋</button>
-      <button class="btn" id="fit" title="适应窗口 (F)" data-en-title="Fit to window (F)" data-en="Fit">适应</button>
-      <button class="btn" id="s60" title="按 1:60 显示（与原图同比例）" data-en-title="Show at 1:60 (same scale as the original plan)">1:60</button>
-      <button class="btn" id="s100" title="按 1:100 显示" data-en-title="Show at 1:100">1:100</button>
+      <button class="btn" id="zoomOut" title="缩小">−</button>
+      <button class="btn" id="zoomIn" title="放大">＋</button>
+      <button class="btn" id="fit" title="适应窗口 (F)">适应</button>
+      <button class="btn" id="s60" title="按 1:60 显示（与原图同比例）">1:60</button>
+      <button class="btn" id="s100" title="按 1:100 显示">1:100</button>
     </div>
     <div class="grp only3d" id="modes3d">
-      <button class="btn on" data-mode="orbit" data-en="Orbit">鸟瞰</button>
-      <button class="btn" data-mode="walk" data-en="Walk">漫游</button>
+      <button class="btn on" data-mode="orbit">鸟瞰</button>
+      <button class="btn" data-mode="walk">漫游</button>
     </div>
     <div class="grp only3d">
-      <button class="btn" id="vIso" data-en="Iso">斜视</button>
-      <button class="btn" id="vTop" data-en="Top">俯视</button>
+      <button class="btn" id="vIso">斜视</button>
+      <button class="btn" id="vTop">俯视</button>
     </div>
     <div class="grp">
-      <button class="btn" id="undo" title="撤销 (Ctrl+Z)" data-en-title="Undo (Ctrl+Z)" data-en="Undo">撤销</button>
-      <button class="btn" id="redo" title="重做 (Ctrl+Shift+Z)" data-en-title="Redo (Ctrl+Shift+Z)" data-en="Redo">重做</button>
-      <button class="btn danger" id="clearAll" title="清空所有家具家电（可撤销）" data-en-title="Remove all furniture and appliances (undoable)" data-en="Clear">清空布置</button>
+      <button class="btn" id="undo" title="撤销 (Ctrl+Z)">撤销</button>
+      <button class="btn" id="redo" title="重做 (Ctrl+Shift+Z)">重做</button>
+      <button class="btn danger" id="clearAll" title="清空所有家具家电（可撤销）">清空布置</button>
     </div>
     <div class="grp only2d" id="layers">
-      <button class="btn chip on" data-layer="dims" data-en="Dims">尺寸</button>
-      <button class="btn chip on" data-layer="labels" data-en="Rooms">房间</button>
-      <button class="btn chip on" data-layer="furn" data-en="Furniture">家具</button>
-      <button class="btn chip" data-layer="grid" data-en="Grid">网格</button>
-      <button class="btn chip" data-layer="bearing" data-en="Bearing walls">承重墙</button>
-      <button class="btn chip on" data-layer="wallSnap" title="拖动家具时贴墙吸附" data-en-title="Snap furniture to walls while dragging" data-en="Wall snap">贴墙吸附</button>
+      <button class="btn chip on" data-layer="dims">尺寸</button>
+      <button class="btn chip on" data-layer="labels">房间</button>
+      <button class="btn chip on" data-layer="furn">家具</button>
+      <button class="btn chip" data-layer="grid">网格</button>
+      <button class="btn chip" data-layer="bearing">承重墙</button>
+      <button class="btn chip on" data-layer="wallSnap" title="拖动家具时贴墙吸附">贴墙吸附</button>
     </div>
     <div class="grp only3d">
-      <button class="btn chip on" data-cut="2.8" data-en="Full walls">全高墙</button>
-      <button class="btn chip" data-cut="1.2" data-en="Cut walls">剖切墙</button>
+      <button class="btn chip on" data-cut="2.8">全高墙</button>
+      <button class="btn chip" data-cut="1.2">剖切墙</button>
     </div>
     <div class="grp only3d" id="toggles3d">
-      <button class="btn chip on" data-t="furn" data-en="Furniture">家具</button>
-      <button class="btn chip on" data-t="labels" data-en="Labels">房间名</button>
-      <button class="btn chip" data-t="night" data-en="Night">夜景</button>
+      <button class="btn chip on" data-t="furn">家具</button>
+      <button class="btn chip on" data-t="labels">房间名</button>
+      <button class="btn chip" data-t="night">夜景</button>
     </div>
-    <div class="grp only3d"><label class="range"><span data-en="Sun">日照</span> <input type="range" id="sun" min="7" max="18" step=".25" value="10" style="width:84px"><span id="sunT">10:00</span></label></div>
+    <div class="grp only3d"><label class="range"><span>日照</span> <input type="range" id="sun" min="7" max="18" step=".25" value="10" style="width:84px"><span id="sunT">10:00</span></label></div>
     <div class="spacer"></div>
-    <div class="grp" id="langSel" role="group" aria-label="Language / 语言">
-      <button class="btn chip" data-lang="zh" title="简体中文">简</button>
-      <button class="btn chip" data-lang="zht" title="繁體中文">繁</button>
-      <button class="btn chip" data-lang="en" title="English">EN</button>
-    </div>
     <button class="btn" id="fullscreen" title="全屏 (Shift+F)" style="border:1px solid var(--line);background:#fff">⛶ 全屏</button>
-    <details class="menu"><summary class="btn" data-en="File ▾">文件 ▾</summary>
+    <details class="menu"><summary class="btn">文件 ▾</summary>
       <div class="menu-pop">
-        <button class="btn" id="exportPng" data-en="Export image">导出图片</button>
-        <button class="btn" id="exportJson" data-en="Export plan JSON">导出方案 JSON</button>
-        <button class="btn" id="importJson" data-en="Import plan">导入方案</button>
-        <button class="btn danger" id="reset" data-en="Reset to default">重置为默认方案</button>
+        <button class="btn" id="exportPng">导出图片</button>
+        <button class="btn" id="exportJson">导出方案 JSON</button>
+        <button class="btn" id="importJson">导入方案</button>
+        <button class="btn danger" id="reset">重置为默认方案</button>
       </div></details>
     <input type="file" id="fileIn" accept=".json,application/json" hidden>
   </header>
 
   <aside class="lib">
     <div id="lib3d" class="only3d">
-      <h4 data-en="Rooms · click to fly there">房间 · 点击飞到该房间</h4>
+      <h4>房间 · 点击飞到该房间</h4>
       <div id="roomList"></div>
     </div>
     <div id="lib"></div>
@@ -316,13 +310,13 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
       <g id="gSel"></g>
     </svg>
     <div id="view3d">
-      <div id="walkOverlay"><div><h3 data-en="Walk mode">漫游模式</h3>
+      <div id="walkOverlay"><div><h3>漫游模式</h3>
         <p id="wo1"></p>
         <p id="wo2"></p>
         <p id="wo3"></p></div></div>
       <div id="cross"></div>
       <div id="joy"><i></i></div>
-      <button class="btn primary" id="walkExit" data-en="Exit walk">退出漫游</button>
+      <button class="btn primary" id="walkExit">退出漫游</button>
       <div id="hint3d"></div>
     </div>
     <div class="scalebar" id="scalebar"><span id="sbText">1 m</span><div class="bar" id="sbBar"></div></div>
@@ -334,7 +328,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
 
   <footer>
     <span class="only2d">X <b id="cx">—</b></span><span class="only2d">Y <b id="cy">—</b></span>
-    <span class="only2d"><span data-en="Scale">当前比例</span> <b id="ratio">—</b></span>
+    <span class="only2d"><span>当前比例</span> <b id="ratio">—</b></span>
     <span id="hover" class="only2d"></span>
     <span class="spacer"></span>
     <span id="tip"></span>
@@ -343,46 +337,7 @@ main.drawer-panel #fab{opacity:0;visibility:hidden}
 <div id="toast"></div>
 
 <script>
-/* ======================= 多语言（中文 / English，默认中文） ======================= */
-const LANG_KEY = 'huxing-lang';
-const LANGS = ['zh', 'zht', 'en'];             // 简体 / 繁體（台湾用字）/ English
-let LANG = (() => { try { const l = localStorage.getItem(LANG_KEY); return LANGS.includes(l) ? l : 'zh'; } catch(e) { return 'zh'; } })();
-// 简 → 繁：先按词替换一字多义的字，再逐字查表（表由 OpenCC s2tw 按本页用到的字生成）
-const S2T_PHRASES = [['布置','佈置'],['布局','佈局'],['台面','檯面'],['复制','複製']];
-const S2T = new Map(('与與两兩个個为為书書于於仅僅从從价價会會传傳体體余餘侧側倾傾储儲儿兒关關内內写寫净淨准準击擊则則刚剛删刪制製办辦动動势勢区區单單占佔卧臥卫衛厅廳历歷压壓厨廚双雙发發变變叶葉后後吗嗎听聽启啟哑啞围圍图圖圆圓场場坐座块塊垫墊墙牆处處备備复復头頭妆妝婴嬰实實宽寬对對导導层層屉屜属屬岛島带帶干乾并並库庫应應开開当當径徑态態总總悬懸懒懶户戶护護拟擬择擇挂掛挡擋挤擠损損换換据據摆擺摇搖撑撐数數无無时時显顯暂暫机機杂雜杆桿条條来來松鬆构構柜櫃标標栈棧栏欄样樣梁樑棱稜椭橢横橫橱櫥气氣没沒注註浅淺测測浏瀏游遊滚滾满滿灯燈灵靈点點热熱状狀独獨环環现現电電画畫监監盖蓋盘盤砖磚确確离離积積称稱竖豎筑築签籤类類约約级級线線结結绕繞绘繪给給统統继繼绿綠缀綴编編缝縫缩縮网網联聯脚腳获獲虚虛装裝见見视視览覽触觸计計认認让讓议議记記设設识識译譯该該语語请請读讀调調负負败敗质質贴貼赶趕转轉轮輪软軟轴軸轻輕载載较較辅輔辑輯边邊过過这這进進远遠适適选選邻鄰里裡针針钢鋼钮鈕铰鉸铺鋪销銷锁鎖键鍵镜鏡长長门門闭閉闲閒间間阅閱阳陽阴陰阶階随隨隐隱静靜页頁顶頂项項顺順颜顏飘飄飞飛马馬鸟鳥齐齊龙龍').match(/../gu).map(p => [...p]));
-const s2t = s => S2T_PHRASES.reduce((a, [f, t]) => a.replaceAll(f, t), s).replace(/[\u3400-\u9fff]/g, c => S2T.get(c) || c);
-const tr = (zh, en) => LANG === 'en' ? en : LANG === 'zht' ? s2t(zh) : zh;
-// 内置的房间 / 材料 / 家具名称存的是中文；英文界面下显示译名，用户自己改过的名称原样显示
-const NAMES_EN = {
-  '主卧室':'Master Bedroom', '主卫浴':'Master Bath', '小孩房':"Kids' Room", '客卫浴':'Guest Bath', '洗衣阳台':'Laundry Balcony',
-  '子女房':"Children's Room", '厨房':'Kitchen', '餐厅':'Dining', '过道':'Hallway', '客厅':'Living Room', '休闲阳台':'Leisure Balcony',
-  '主卧飘窗':'Master Bay Window', '子女房飘窗':"Children's Bay Window",
-  '橡木地板':'Oak Flooring', '胡桃木地板':'Walnut Flooring', '800 地砖':'800 Tile', '600 地砖':'600 Tile', '大理石':'Marble',
-  '300 防滑砖':'300 Anti-slip Tile', '水磨石':'Terrazzo', '满铺地毯':'Wall-to-wall Carpet',
-  '卧室':'Bedroom', '餐厨':'Dining & Kitchen', '卫浴':'Bathroom', '家电':'Appliances', '书房 · 休闲':'Study & Leisure',
-  '双人床 1.8m':'Double Bed 1.8m', '双人床 1.5m':'Double Bed 1.5m', '双人床':'Double Bed', '单人床':'Single Bed', '婴儿床':'Crib',
-  '床头柜':'Nightstand', '衣柜':'Wardrobe', '小衣柜':'Small Wardrobe', '梳妆台':'Dresser', '书桌':'Desk', '椅子':'Chair',
-  '书架':'Bookshelf', '飘窗垫':'Bay Cushion', '三人沙发':'3-Seat Sofa', '双人沙发':'Loveseat', '转角沙发':'Corner Sofa',
-  '单人沙发':'Armchair', '懒人沙发':'Beanbag', '茶几':'Coffee Table', '边几':'Side Table', '电视柜':'TV Stand', '地毯':'Rug',
-  '鞋柜':'Shoe Cabinet', '玄关柜':'Entry Cabinet', '落地灯':'Floor Lamp', '绿植':'Plant', '大绿植':'Large Plant',
-  '餐桌':'Dining Table', '六人餐桌':'6-Seat Dining Table', '圆桌':'Round Table', '餐椅':'Dining Chair', '岛台':'Kitchen Island',
-  '吧椅':'Bar Stool', '橱柜台面':'Kitchen Counter', '燃气灶':'Gas Stove', '水槽':'Sink', '冰箱':'Fridge', '餐边柜':'Sideboard',
-  '马桶':'Toilet', '浴室柜':'Vanity', '双盆浴室柜':'Double Vanity', '淋浴房':'Shower', '淋浴区':'Shower Area', '浴缸':'Bathtub',
-  '洗衣机':'Washer', '洗衣池':'Laundry Sink', '电热水器':'Water Heater', '储物柜':'Storage Cabinet', '65 寸电视':'65" TV',
-  '55 寸电视':'55" TV', '对开门冰箱':'French-door Fridge', '柜机空调':'Floor AC', '挂机空调':'Wall AC', '洗碗机':'Dishwasher',
-  '蒸烤箱高柜':'Oven Tower', '烘干机':'Dryer', '空气净化器':'Air Purifier', '长书桌':'Long Desk', '办公椅':'Office Chair',
-  '大书架':'Large Bookshelf', '立式钢琴':'Upright Piano', '跑步机':'Treadmill', '阅读椅':'Reading Chair', '茶桌':'Tea Table', '休闲椅':'Lounge Chair',
-};
-const nm = s => LANG === 'en' ? (NAMES_EN[s] ?? s) : LANG === 'zht' ? s2t(s) : s;
-// 静态文案：元素上写 data-en / data-en-title，中文原文首次切换时存进 dataset
-function applyStaticLang(){
-  document.documentElement.lang = {zh:'zh-CN', zht:'zh-TW', en:'en'}[LANG];
-  document.title = tr('户型装修设计', 'Floor Plan Designer');
-  document.querySelectorAll('[data-en]').forEach(el => { el.dataset.zh ??= el.textContent; el.textContent = tr(el.dataset.zh, el.dataset.en); });
-  document.querySelectorAll('[data-en-title]').forEach(el => { el.dataset.zhTitle ??= el.title; el.title = tr(el.dataset.zhTitle, el.dataset.enTitle); });
-  document.querySelectorAll('#langSel [data-lang]').forEach(b => { const on = b.dataset.lang === LANG; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
-}
-
+const nm = s => s;
 /* ============================================================
  *  户型数据（单位 mm，原点 = 左侧外墙内皮 / 顶部外墙内皮）
  *  所有数值均按原始户型图尺寸标注推算：
@@ -573,7 +528,7 @@ function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } cat
 const snap = () => JSON.stringify(state);
 function commit(before){ undoStack.push(before); if (undoStack.length > 150) undoStack.shift(); redoStack.length = 0; save(); }
 function mutate(fn){ const b = snap(); fn(); commit(b); renderAll(); }
-function undo(){ if (!undoStack.length) return toast(tr('没有可撤销的操作', 'Nothing to undo')); redoStack.push(snap()); state = JSON.parse(undoStack.pop()); validateSel(); save(); renderAll(); }
+function undo(){ if (!undoStack.length) return toast('没有可撤销的操作'); redoStack.push(snap()); state = JSON.parse(undoStack.pop()); validateSel(); save(); renderAll(); }
 function redo(){ if (!redoStack.length) return; undoStack.push(snap()); state = JSON.parse(redoStack.pop()); validateSel(); save(); renderAll(); }
 function validateSel(){ if (ui.sel?.kind==='furn' && !getF(ui.sel.id)) ui.sel = null; }
 const getF = id => state.furniture.find(f => f.id === id);
@@ -778,7 +733,7 @@ function renderOpenings(){
   });
   // 入户标识
   s += `<path d="M3350 8755H4350M4150 8600L4400 8755L4150 8910" fill="none" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke"/>
-        <text x="3380" y="8600" font-size="200" fill="#b5653a">${tr('入户','Entry')}</text>`;
+        <text x="3380" y="8600" font-size="200" fill="#b5653a">入户</text>`;
   $('#gOpen').innerHTML = s;
 }
 
@@ -847,9 +802,9 @@ function renderSel(){
         <rect x="${-f.w/2-p}" y="${-f.d/2-p}" width="${f.w+2*p}" height="${f.d+2*p}" fill="none" ${A} stroke-width="1.5" stroke-dasharray="5 3" pointer-events="none"/>
         <line x1="0" y1="${-f.d/2-p}" x2="0" y2="${-f.d/2-ro}" ${A} stroke-width="1" pointer-events="none"/>
         <circle data-handle="rot" cx="0" cy="${-f.d/2-ro}" r="${hit}" fill="transparent"/>
-        <circle data-handle="rot" cx="0" cy="${-f.d/2-ro}" r="${6*hs*k}" fill="#fff" ${A} stroke-width="1.5"><title>${tr('拖动旋转（Shift 自由角度）','Drag to rotate (Shift for free angle)')}</title></circle>
+        <circle data-handle="rot" cx="0" cy="${-f.d/2-ro}" r="${6*hs*k}" fill="#fff" ${A} stroke-width="1.5"><title>拖动旋转（Shift 自由角度）</title></circle>
         <circle data-handle="size" cx="${sx}" cy="${sy}" r="${hit}" fill="transparent"/>
-        <rect data-handle="size" x="${sx-5*hs*k}" y="${sy-5*hs*k}" width="${10*hs*k}" height="${10*hs*k}" fill="#b5653a"><title>${tr('拖动调整尺寸','Drag to resize')}</title></rect></g>`;
+        <rect data-handle="size" x="${sx-5*hs*k}" y="${sy-5*hs*k}" width="${10*hs*k}" height="${10*hs*k}" fill="#b5653a"><title>拖动调整尺寸</title></rect></g>`;
       const {hh} = aabb(f);
       s += `<text x="${f.cx}" y="${f.cy+hh+24*k}" font-size="${12*k}" text-anchor="middle" fill="#b5653a" font-weight="600" pointer-events="none"
         stroke="#fff" stroke-width="${3*k}" paint-order="stroke">${f.w} × ${f.d}</text>`;
@@ -868,7 +823,7 @@ function renderAll(){
 
 function updateHeader(){
   const tot = ROOMS.filter(r => r.counted !== false).reduce((a,r) => a + area(r.poly), 0);
-  $('#subtitle').textContent = tr(`套内使用面积约 ${fmt(tot)} m² · 尺寸单位 mm · 原图比例 1:60`, `Net floor area ≈ ${fmt(tot)} m² · Units: mm · Original scale 1:60`);
+  $('#subtitle').textContent = `套内使用面积约 ${fmt(tot)} m² · 尺寸单位 mm · 原图比例 1:60`;
   $('#undo').disabled = !undoStack.length; $('#redo').disabled = !redoStack.length;
   $('#undo').style.opacity = undoStack.length ? 1 : .4; $('#redo').style.opacity = redoStack.length ? 1 : .4;
 }
@@ -899,42 +854,31 @@ function overviewPanel(){
   const dem = state.demolished.map(id => WALLS[+id.slice(1)]);
   const demLen = dem.reduce((a,w) => a + Math.max(w[2]-w[0], w[3]-w[1]), 0) / 1000;
   return `
-  <section><h3>${tr('房间面积','Room Areas')} <small>${tr('点击查看 / 更换地面','Click to view / change flooring')}</small></h3>
+  <section><h3>房间面积 <small>点击查看 / 更换地面</small></h3>
     <table>${rows}</table>
-    <div class="total"><span>${tr('套内使用面积','Net floor area')}</span><b>${fmt(tot)} m²</b></div>
-    <div class="muted" style="font-size:11px;margin-top:4px">${tr('* 飘窗不计入使用面积；面积按墙体内净尺寸计算','* Bay windows are excluded; areas use net inner wall dimensions')}</div></section>
-  <section><h3>${tr('地面材料估算','Flooring Estimate')} <small>${tr('含 5% 损耗','incl. 5% waste')}</small></h3>
+    <div class="total"><span>套内使用面积</span><b>${fmt(tot)} m²</b></div>
+    <div class="muted" style="font-size:11px;margin-top:4px">* 飘窗不计入使用面积；面积按墙体内净尺寸计算</div></section>
+  <section><h3>地面材料估算 <small>含 5% 损耗</small></h3>
     <table>${matRows}</table>
-    <div class="total"><span>${tr('地面材料合计','Flooring total')}</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
-  <section><h3>${tr('方案统计','Plan Stats')}</h3>
-    <div class="stats"><div><small>${tr('家具数量','Furniture')}</small><span class="big">${state.furniture.length}</span></div>
-      <div><small>${tr('拆除墙体','Walls removed')}</small><span class="big">${fmt(demLen,1)}</span> m</div></div>
-    <div class="actions"><button class="btn" id="clearMeasure">${tr('清除测量','Clear measures')} (${state.measures.length})</button>
-      <button class="btn danger" id="clearFurn">${tr('清空布置','Clear layout')}</button></div></section>
-  ${COARSE ? tr(`<section><h3>触屏操作</h3><div class="kbd">
+    <div class="total"><span>地面材料合计</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
+  <section><h3>方案统计</h3>
+    <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div>
+      <div><small>拆除墙体</small><span class="big">${fmt(demLen,1)}</span> m</div></div>
+    <div class="actions"><button class="btn" id="clearMeasure">清除测量 (${state.measures.length})</button>
+      <button class="btn danger" id="clearFurn">清空布置</button></div></section>
+  ${COARSE ? `<section><h3>触屏操作</h3><div class="kbd">
     <kbd>单指拖动</kbd><span>空白处平移画面</span><kbd>双指</kbd><span>捏合缩放、拖动平移</span>
     <kbd>家具库</kbd><span>点一下放到画面中央，或按住向右拖到指定位置</span>
     <kbd>点家具</kbd><span>选中后拖动移动；拖顶部圆点旋转、右下方块改尺寸</span>
     <kbd>工具条</kbd><span>选中后底部可旋转 / 复制 / 删除</span>
     <kbd>测量</kbd><span>按住拖出一条线，或依次点两点</span>
     <kbd>3D 漫游</kbd><span>左下摇杆移动，拖动屏幕转向，点门开关</span>
-  </div></section>`, `<section><h3>Touch Controls</h3><div class="kbd">
-    <kbd>1-finger drag</kbd><span>Pan on empty space</span><kbd>2 fingers</kbd><span>Pinch to zoom, drag to pan</span>
-    <kbd>Library</kbd><span>Tap to place at center, or hold and drag right to a spot</span>
-    <kbd>Tap item</kbd><span>Drag to move; top dot rotates, bottom-right square resizes</span>
-    <kbd>Toolbar</kbd><span>Bottom bar can rotate / duplicate / delete</span>
-    <kbd>Measure</kbd><span>Hold and drag a line, or tap two points</span>
-    <kbd>3D walk</kbd><span>Joystick moves, drag to look, tap doors to open</span>
-  </div></section>`) : ''}
-  ${tr(`<section><h3>键盘快捷键</h3><div class="kbd">
+  </div></section>` : ''}
+  ${`<section><h3>键盘快捷键</h3><div class="kbd">
     <kbd>拖拽</kbd><span>左侧家具拖入平面图</span><kbd>V</kbd><span>选择 / 移动</span><kbd>M</kbd><span>测量（Shift 水平/垂直）</span>
     <kbd>X</kbd><span>拆改非承重墙（黑色为承重墙）</span><kbd>R</kbd><span>旋转 90°（Shift 反向）</span><kbd>方向键</kbd><span>微调 10mm（Shift 100mm）</span>
     <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
-  </div></section>`, `<section><h3>Keyboard Shortcuts</h3><div class="kbd">
-    <kbd>Drag</kbd><span>Drag furniture onto the plan</span><kbd>V</kbd><span>Select / move</span><kbd>M</kbd><span>Measure (Shift: horizontal/vertical)</span>
-    <kbd>X</kbd><span>Demolish non-bearing walls (black = bearing)</span><kbd>R</kbd><span>Rotate 90° (Shift reverses)</span><kbd>Arrows</kbd><span>Nudge 10mm (Shift 100mm)</span>
-    <kbd>⌘/Ctrl D</kbd><span>Duplicate</span><kbd>Delete</kbd><span>Delete</span><kbd>⌘/Ctrl Z</kbd><span>Undo</span><kbd>T</kbd><span>Toggle 2D / 3D</span><kbd>F</kbd><span>Fit to window</span><kbd>Esc</kbd><span>Deselect</span>
-  </div></section>`)}`;
+  </div></section>`}`;
 }
 function bindOverview(){
   document.querySelectorAll('#panel tr[data-room]').forEach(tr => tr.onclick = () => { select({kind:'room', id:tr.dataset.room}); if (is3D()) window.View3D.flyToRoom(tr.dataset.room); });
@@ -947,10 +891,10 @@ function renderFab(){
   const fab = $('#fab'), f = ui.sel?.kind === 'furn' && getF(ui.sel.id), r = ui.sel?.kind === 'room' && ROOMS.find(r => r.id === ui.sel.id);
   if (!f && !r){ fab.classList.remove('show'); return; }
   fab.innerHTML = f
-    ? `<span class="name">${esc(nm(f.name))}</span><button class="btn" data-a="rotL">↺</button><button class="btn" data-a="rotR">↻ ${tr('旋转','Rotate')}</button>
-       <button class="btn" data-a="dup">${tr('复制','Duplicate')}</button><button class="btn danger" data-a="del">${tr('删除','Delete')}</button><span class="sep"></span>
-       <button class="btn narrow-only" data-a="prop">${tr('属性','Properties')}</button><button class="btn" data-a="done">${tr('完成','Done')}</button>`
-    : `<span class="name">${esc(nm(state.rooms[r.id].name))}</span><button class="btn narrow-only" data-a="prop">${tr('地面 / 属性','Floor / Properties')}</button><button class="btn" data-a="done">${tr('完成','Done')}</button>`;
+    ? `<span class="name">${esc(nm(f.name))}</span><button class="btn" data-a="rotL">↺</button><button class="btn" data-a="rotR">↻ 旋转</button>
+       <button class="btn" data-a="dup">复制</button><button class="btn danger" data-a="del">删除</button><span class="sep"></span>
+       <button class="btn narrow-only" data-a="prop">属性</button><button class="btn" data-a="done">完成</button>`
+    : `<span class="name">${esc(nm(state.rooms[r.id].name))}</span><button class="btn narrow-only" data-a="prop">地面 / 属性</button><button class="btn" data-a="done">完成</button>`;
   fab.classList.add('show');
   fab.querySelectorAll('[data-a]').forEach(b => b.onclick = () => ({
     rotL:() => rotateSel(-90), rotR:() => rotateSel(90), dup:duplicateSel, del:deleteSel,
@@ -960,10 +904,10 @@ function renderFab(){
 
 function clearLayout(){
   const n = state.furniture.length;
-  if (!n) return toast(tr('当前没有布置任何家具', 'There is no furniture to clear'));
-  if (!confirm(tr(`确定清空全部 ${n} 件家具 / 家电吗？\n墙体、地面材料和测量线会保留，可点「撤销」恢复。`, `Remove all ${n} furniture / appliance items?\nWalls, flooring and measurements are kept. You can Undo this.`))) return;
+  if (!n) return toast('当前没有布置任何家具');
+  if (!confirm(`确定清空全部 ${n} 件家具 / 家电吗？\n墙体、地面材料和测量线会保留，可点「撤销」恢复。`)) return;
   ui.sel = null; mutate(() => state.furniture = []);
-  toast(tr('已清空布置，可点「撤销」恢复', 'Layout cleared — Undo to restore'));
+  toast('已清空布置，可点「撤销」恢复');
 }
 
 /* 侧栏开合：which = 'lib' | 'panel' | null，open 不传则切换。
@@ -989,8 +933,8 @@ function syncPaneBtns(){
   const els = {lib:$('aside.lib'), panel:$('aside.right')}, n = narrow();
   const vis = k => n ? els[k].classList.contains('open') : !panes[k === 'lib' ? 'hideLib' : 'hidePanel'];
   $('#tgLib').classList.toggle('on', vis('lib')); $('#tgPanel').classList.toggle('on', vis('panel'));
-  $('#tgLib').title = vis('lib') ? tr('收起家具库 ( [ )', 'Hide library ( [ )') : tr('展开家具库 ( [ )', 'Show library ( [ )');
-  $('#tgPanel').title = vis('panel') ? tr('收起属性面板 ( ] )', 'Hide properties ( ] )') : tr('展开属性面板 ( ] )', 'Show properties ( ] )');
+  $('#tgLib').title = vis('lib') ? '收起家具库 ( [ )' : '展开家具库 ( [ )';
+  $('#tgPanel').title = vis('panel') ? '收起属性面板 ( ] )' : '展开属性面板 ( ] )';
   $('#stage').classList.toggle('drawer-panel', n && vis('panel'));   // 属性抽屉盖住画面时让出底部工具条
 }
 function closeDrawers(){ if (narrow()) drawer(null); }
@@ -998,19 +942,19 @@ function closeDrawers(){ if (narrow()) drawer(null); }
 function roomPanel(r){
   const st = state.rooms[r.id], a = area(r.poly), [x0,y0,x1,y1] = bbox(r.poly), inside = state.furniture.filter(f => f.cx>x0&&f.cx<x1&&f.cy>y0&&f.cy<y1);
   const mats = Object.entries(MATS).map(([k,m]) => `<button class="mat ${k===st.mat?'on':''}" data-mat="${k}"><i style="background:${m.sw}"></i><span>${nm(m.name)}<small>¥${m.price}/m²</small></span></button>`).join('');
-  return `<section><h3>${tr('房间','Room')}</h3>
-    <div class="form"><label class="full">${tr('名称','Name')}<input id="rName" value="${esc(nm(st.name))}"></label></div>
+  return `<section><h3>房间</h3>
+    <div class="form"><label class="full">名称<input id="rName" value="${esc(nm(st.name))}"></label></div>
     <div class="stats" style="margin-top:10px">
-      <div><small>${tr('使用面积','Floor area')}</small><span class="big">${fmt(a)}</span> m²</div>
-      <div><small>${tr('周长','Perimeter')}</small><span class="big">${fmt(perim(r.poly),1)}</span> m</div>
-      <div><small>${tr('开间','Width')}</small><span class="big">${x1-x0}</span> mm</div>
-      <div><small>${tr('进深','Depth')}</small><span class="big">${y1-y0}</span> mm</div></div>
-    <div class="muted">${tr(`墙面面积（层高 2.8m，未扣门窗）约 ${fmt(perim(r.poly)*2.8,1)} m²`, `Wall area (2.8m ceiling, openings not deducted) ≈ ${fmt(perim(r.poly)*2.8,1)} m²`)}</div></section>
-  <section><h3>${tr('地面材料','Flooring')}</h3><div class="mats">${mats}</div>
-    <div class="total"><span>${tr('材料估价','Estimated cost')}</span><b>¥${Math.round(a*MATS[st.mat].price*1.05).toLocaleString()}</b></div></section>
-  <section><h3>${tr('房间内家具','Furniture in room')} <small>${tr(`${inside.length} 件`, `${inside.length} items`)}</small></h3>
-    <table>${inside.map(f => `<tr class="click" data-fid="${f.id}"><td>${esc(nm(f.name))}</td><td class="r muted">${f.w}×${f.d}</td></tr>`).join('') || `<tr><td class="muted">${tr('暂无','None')}</td></tr>`}</table>
-    <div class="actions"><button class="btn" id="back">${tr('← 返回总览','← Back to overview')}</button></div></section>`;
+      <div><small>使用面积</small><span class="big">${fmt(a)}</span> m²</div>
+      <div><small>周长</small><span class="big">${fmt(perim(r.poly),1)}</span> m</div>
+      <div><small>开间</small><span class="big">${x1-x0}</span> mm</div>
+      <div><small>进深</small><span class="big">${y1-y0}</span> mm</div></div>
+    <div class="muted">${`墙面面积（层高 2.8m，未扣门窗）约 ${fmt(perim(r.poly)*2.8,1)} m²`}</div></section>
+  <section><h3>地面材料</h3><div class="mats">${mats}</div>
+    <div class="total"><span>材料估价</span><b>¥${Math.round(a*MATS[st.mat].price*1.05).toLocaleString()}</b></div></section>
+  <section><h3>房间内家具 <small>${`${inside.length} 件`}</small></h3>
+    <table>${inside.map(f => `<tr class="click" data-fid="${f.id}"><td>${esc(nm(f.name))}</td><td class="r muted">${f.w}×${f.d}</td></tr>`).join('') || `<tr><td class="muted">暂无</td></tr>`}</table>
+    <div class="actions"><button class="btn" id="back">← 返回总览</button></div></section>`;
 }
 function bindRoomPanel(){
   const id = ui.sel.id;
@@ -1021,23 +965,23 @@ function bindRoomPanel(){
 }
 
 function furnPanel(f){
-  return `<section><h3>${tr('家具属性','Furniture')}</h3>
+  return `<section><h3>家具属性</h3>
     <div class="form">
-      <label class="full">${tr('名称','Name')}<input id="fName" value="${esc(nm(f.name))}"></label>
-      <label>${tr('宽','Width')} (mm)<input type="number" id="fW" value="${f.w}" min="50" step="10"></label>
-      <label>${tr('深','Depth')} (mm)<input type="number" id="fD" value="${f.d}" min="50" step="10"></label>
-      <label>${tr('中心','Center')} X (mm)<input type="number" id="fX" value="${Math.round(f.cx)}" step="10"></label>
-      <label>${tr('中心','Center')} Y (mm)<input type="number" id="fY" value="${Math.round(f.cy)}" step="10"></label>
-      <label>${tr('旋转','Rotation')} (°)<input type="number" id="fR" value="${f.rot}" step="15"></label>
-      <label>${tr('颜色','Color')}<input type="color" id="fC" value="${f.color}"></label>
+      <label class="full">名称<input id="fName" value="${esc(nm(f.name))}"></label>
+      <label>宽 (mm)<input type="number" id="fW" value="${f.w}" min="50" step="10"></label>
+      <label>深 (mm)<input type="number" id="fD" value="${f.d}" min="50" step="10"></label>
+      <label>中心 X (mm)<input type="number" id="fX" value="${Math.round(f.cx)}" step="10"></label>
+      <label>中心 Y (mm)<input type="number" id="fY" value="${Math.round(f.cy)}" step="10"></label>
+      <label>旋转 (°)<input type="number" id="fR" value="${f.rot}" step="15"></label>
+      <label>颜色<input type="color" id="fC" value="${f.color}"></label>
     </div>
-    <div class="muted" style="margin-top:8px">${tr('占地面积','Footprint')} ${fmt(f.w*f.d/1e6)} m²</div>
+    <div class="muted" style="margin-top:8px">占地面积 ${fmt(f.w*f.d/1e6)} m²</div>
     <div class="actions">
-      <button class="btn" id="aRot">${tr('旋转 90°','Rotate 90°')}</button><button class="btn" id="aDup">${tr('复制','Duplicate')}</button>
-      <button class="btn" id="aTop">${tr('置于顶层','Bring to front')}</button><button class="btn" id="aBot">${tr('置于底层','Send to back')}</button>
-      <button class="btn danger" id="aDel">${tr('删除','Delete')}</button><button class="btn" id="back">${tr('← 返回','← Back')}</button>
+      <button class="btn" id="aRot">旋转 90°</button><button class="btn" id="aDup">复制</button>
+      <button class="btn" id="aTop">置于顶层</button><button class="btn" id="aBot">置于底层</button>
+      <button class="btn danger" id="aDel">删除</button><button class="btn" id="back">← 返回</button>
     </div></section>
-  <section class="muted" style="font-size:12px">${tr('拖动家具移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「贴墙吸附」后靠近墙面会自动贴齐。', 'Drag to move; drag the top dot to rotate; drag the bottom-right square to resize. With "Wall snap" on, items snap flush to nearby walls.')}</section>`;
+  <section class="muted" style="font-size:12px">拖动家具移动；拖动上方圆点旋转；拖动右下角方块调整尺寸。开启「贴墙吸附」后靠近墙面会自动贴齐。</section>`;
 }
 function bindFurnPanel(f){
   const upd = (fn) => mutate(() => { const g = getF(f.id); if (g) fn(g); });
@@ -1083,15 +1027,15 @@ function addItem(it, x, y){
   pushOut(f);
   ui.sel = {kind:'furn', id:f.id};
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
-  toast(tr(`已添加「${name}」${w}×${d}`, `Added "${nm(name)}" ${w}×${d}`));
+  toast(`已添加「${name}」${w}×${d}`);
 }
 function toggleWall(id){
   const w = WALLS[+id.slice(1)];
-  if (w[4]==='b') return toast(tr('承重墙（黑色）不可拆除', 'Load-bearing walls (black) cannot be removed'));
-  if (w[4]==='e') return toast(tr('外墙属于建筑外围护结构，不建议拆除', 'Exterior walls are part of the building envelope and should not be removed'));
+  if (w[4]==='b') return toast('承重墙（黑色）不可拆除');
+  if (w[4]==='e') return toast('外墙属于建筑外围护结构，不建议拆除');
   const on = state.demolished.includes(id);
   mutate(() => state.demolished = on ? state.demolished.filter(x => x!==id) : [...state.demolished, id]);
-  toast(on ? tr('已恢复墙体', 'Wall restored') : tr(`已标记拆除 ${Math.max(w[2]-w[0], w[3]-w[1])} mm 墙体`, `Marked ${Math.max(w[2]-w[0], w[3]-w[1])} mm of wall for removal`));
+  toast(on ? '已恢复墙体' : `已标记拆除 ${Math.max(w[2]-w[0], w[3]-w[1])} mm 墙体`);
 }
 
 function setTool(t){
@@ -1103,9 +1047,9 @@ function setTool(t){
 }
 function syncModeHint(){
   const hints = {select:'',
-    measure:COARSE ? tr('按住拖出测量线，或依次点两点 · 靠近墙面自动吸附 · 点「选择」退出', 'Hold and drag a line, or tap two points · snaps to walls · tap "Select" to exit')
-      : tr('点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消', 'Click two points (or drag) to measure · snaps to walls · Shift locks horizontal/vertical · Esc cancels'),
-    demolish:tr('点击灰色非承重墙标记拆除，再次点击恢复 · 黑色承重墙不可拆', 'Click a grey non-bearing wall to remove it, click again to restore · black bearing walls cannot be removed')};
+    measure:COARSE ? '按住拖出测量线，或依次点两点 · 靠近墙面自动吸附 · 点「选择」退出'
+      : '点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消',
+    demolish:'点击灰色非承重墙标记拆除，再次点击恢复 · 黑色承重墙不可拆'};
   const h = $('#modehint'); h.textContent = hints[ui.tool]; h.classList.toggle('show', !!hints[ui.tool]);
 }
 
@@ -1322,11 +1266,9 @@ document.addEventListener('keydown', e => {
 function buildLib(){
   $('#lib').innerHTML = LIB.map((c,ci) => `<h4>${nm(c.cat)}</h4><div class="lib-grid">${c.items.map((it,ii) => {
     const [t,n,w,d,col] = it, pad = Math.max(w,d)*.08;
-    return `<div class="item" data-key="${ci}:${ii}" title="${tr('点击添加，或拖到平面图中的指定位置', 'Click to add, or drag onto the plan')}">
+    return `<div class="item" data-key="${ci}:${ii}" title="点击添加，或拖到平面图中的指定位置">
       <svg viewBox="${-w/2-pad} ${-d/2-pad} ${w+2*pad} ${d+2*pad}">${furnSVG(t,w,d,col)}</svg><b>${esc(nm(n))}</b><small>${w}×${d}</small></div>`;
-  }).join('')}</div>`).join('') + `<div class="hint">${tr(
-    `家具按真实尺寸（mm）绘制。${COARSE ? '点一下放到画面中央，或按住向右拖到平面图 / 3D 地面上的指定位置（上下滑动为滚动列表）。' : '点击添加到画面中央，或直接拖到平面图 / 3D 地面上。'}添加后可在右侧修改宽深与颜色。`,
-    `Furniture is drawn at real size (mm). ${COARSE ? 'Tap to place at the center, or hold and drag right onto the plan / 3D floor (swipe up/down to scroll).' : 'Click to add at the center, or drag onto the plan / 3D floor.'} Edit size and color in the right panel afterwards.`)}</div>`;
+  }).join('')}</div>`).join('') + `<div class="hint">${`家具按真实尺寸（mm）绘制。${COARSE ? '点一下放到画面中央，或按住向右拖到平面图 / 3D 地面上的指定位置（上下滑动为滚动列表）。' : '点击添加到画面中央，或直接拖到平面图 / 3D 地面上。'}添加后可在右侧修改宽深与颜色。`}</div>`;
   document.querySelectorAll('.item').forEach(el => el.addEventListener('pointerdown', e => {
     if (e.button) return;
     libDrag = {el, id:e.pointerId, sx:e.clientX, sy:e.clientY, it:itemOf(el), ghost:null};
@@ -1369,7 +1311,7 @@ function endLibDrag(e, ok){
     if (!ok) return;
     const p = dropPoint(e.clientX, e.clientY);
     if (p) addItem(d.it, p.x, p.y);
-    else if (is3D() && e.clientX > $('#stage').getBoundingClientRect().left) toast(tr('请拖到地面上', 'Drop it on the floor'));
+    else if (is3D() && e.clientX > $('#stage').getBoundingClientRect().left) toast('请拖到地面上');
     return;
   }
   if (!ok) return;
@@ -1400,7 +1342,7 @@ function exportPNG(){
   img.onload = () => {
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
     cv.getContext('2d').drawImage(img, 0, 0, W, H);
-    cv.toBlob(b => download(tr('户型装修方案', 'floor-plan-design') + '.png', b));
+    cv.toBlob(b => download('户型装修方案' + '.png', b));
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
 }
@@ -1413,13 +1355,13 @@ function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add
 let viewMode = '2d', switching = false;
 const is3D = () => viewMode === '3d';
 const TIPS = () => COARSE
-  ? {'2d':tr('点或拖动家具库添加 · 单指拖动平移 · 双指缩放 · 选中家具后底部工具条可旋转 / 复制 / 删除', 'Tap or drag from the library · 1 finger pans · pinch zooms · bottom bar rotates / duplicates / deletes'),
-     '3d':tr('单指旋转 · 双指缩放 / 平移 · 点家具或地面编辑 · 点门开关', '1 finger orbits · 2 fingers zoom / pan · tap furniture or floor to edit · tap doors to open')}
-  : {'2d':tr('拖动左侧家具到平面图 · 滚轮缩放 · 拖动空白处平移 · T 切换 3D', 'Drag furniture onto the plan · scroll to zoom · drag empty space to pan · T for 3D'),
-     '3d':tr('3D 场景与平面方案实时同步 · 右侧面板修改会立即生效 · T 返回 2D', '3D stays in sync with the plan · panel edits apply instantly · T for 2D')};
+  ? {'2d':'点或拖动家具库添加 · 单指拖动平移 · 双指缩放 · 选中家具后底部工具条可旋转 / 复制 / 删除',
+     '3d':'单指旋转 · 双指缩放 / 平移 · 点家具或地面编辑 · 点门开关'}
+  : {'2d':'拖动左侧家具到平面图 · 滚轮缩放 · 拖动空白处平移 · T 切换 3D',
+     '3d':'3D 场景与平面方案实时同步 · 右侧面板修改会立即生效 · T 返回 2D'};
 async function setView(m){
   if (m === viewMode || switching) return;
-  if (!window.View3D) return toast(tr('3D 引擎仍在加载或加载失败（需要联网加载 three.js）', '3D engine is still loading or failed to load (three.js needs a network connection)'));
+  if (!window.View3D) return toast('3D 引擎仍在加载或加载失败（需要联网加载 three.js）');
   switching = true; document.body.classList.add('busy');
   viewMode = m;
   if (m === '3d'){ if (ui.tool !== 'select') setTool('select'); ui.mA = null; document.body.classList.add('m3d'); await window.View3D.enter(); }
@@ -1439,7 +1381,7 @@ document.querySelectorAll('#layers .btn').forEach(b => b.onclick = () => {
 $('#zoomIn').onclick = () => zoomCenter(1.25);
 $('#zoomOut').onclick = () => zoomCenter(.8);
 $('#fit').onclick = fitView;
-$('#s60').onclick = () => { setRatio(60); toast(tr('已按 1:60 显示（与原始户型图同比例）', 'Showing at 1:60 (same scale as the original plan)')); };
+$('#s60').onclick = () => { setRatio(60); toast('已按 1:60 显示（与原始户型图同比例）'); };
 $('#s100').onclick = () => setRatio(100);
 $('#undo').onclick = undo; $('#redo').onclick = redo;
 $('#clearAll').onclick = clearLayout;
@@ -1451,14 +1393,14 @@ function toggleFullscreen(){
   if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
   else {
     const req = de.requestFullscreen || de.webkitRequestFullscreen;
-    if (!req) return toast(tr('当前浏览器不支持网页全屏，可在 Safari 中「添加到主屏幕」后以全屏方式打开', 'Fullscreen is not supported here — in Safari, use "Add to Home Screen" to open it fullscreen'));
-    Promise.resolve(req.call(de)).catch(() => toast(tr('无法进入全屏', 'Could not enter fullscreen')));
+    if (!req) return toast('当前浏览器不支持网页全屏，可在 Safari 中「添加到主屏幕」后以全屏方式打开');
+    Promise.resolve(req.call(de)).catch(() => toast('无法进入全屏'));
   }
 }
 function syncFullscreen(){
   const on = !!fsEl(), b = $('#fullscreen');
-  b.textContent = '⛶ ' + (on ? tr('退出全屏', 'Exit fullscreen') : tr('全屏', 'Fullscreen'));
-  b.title = (on ? tr('退出全屏', 'Exit fullscreen') : tr('全屏', 'Fullscreen')) + ' (Shift+F)';
+  b.textContent = '⛶ ' + (on ? '退出全屏' : '全屏');
+  b.title = (on ? '退出全屏' : '全屏') + ' (Shift+F)';
 }
 $('#fullscreen').onclick = toggleFullscreen;
 ['fullscreenchange', 'webkitfullscreenchange'].forEach(t => document.addEventListener(t, syncFullscreen));
@@ -1471,17 +1413,17 @@ document.addEventListener('pointerdown', e => { const m = $('details.menu'); if 
 matchMedia('(max-width:1100px)').addEventListener('change', () => drawer(null));
 drawer(null);                                  // 恢复上次的面板收起状态
 $('#exportPng').onclick = exportPNG;
-$('#exportJson').onclick = () => download(tr('户型装修方案', 'floor-plan-design') + '.json', new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}));
+$('#exportJson').onclick = () => download('户型装修方案' + '.json', new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}));
 $('#importJson').onclick = () => $('#fileIn').click();
 $('#fileIn').onchange = e => {
   const file = e.target.files[0]; if (!file) return;
   file.text().then(txt => {
-    try { const s = JSON.parse(txt); if (!Array.isArray(s.furniture)) throw 0; const b = snap(); state = fixState(s); ui.sel = null; commit(b); renderAll(); toast(tr('方案已导入', 'Plan imported')); }
-    catch(err){ toast(tr('文件格式不正确', 'Invalid file format')); }
+    try { const s = JSON.parse(txt); if (!Array.isArray(s.furniture)) throw 0; const b = snap(); state = fixState(s); ui.sel = null; commit(b); renderAll(); toast('方案已导入'); }
+    catch(err){ toast('文件格式不正确'); }
   });
   e.target.value = '';
 };
-$('#reset').onclick = () => { if (confirm(tr('恢复为默认设计方案？（可撤销）', 'Reset to the default design? (undoable)'))){ const b = snap(); state = defaultState(); ui.sel = null; commit(b); renderAll(); } };
+$('#reset').onclick = () => { if (confirm('恢复为默认设计方案？（可撤销）')){ const b = snap(); state = defaultState(); ui.sel = null; commit(b); renderAll(); } };
 // 横竖屏切换、表头换行等都会改变画布尺寸；尺寸从 0 恢复（如首次布局）时重新适应窗口
 // 其余尺寸变化（收起 / 展开面板等）保持画面中心不动
 let lastW = 0, lastH = 0;
@@ -1492,16 +1434,8 @@ new ResizeObserver(() => {
   lastW = w; lastH = h;
 }).observe(svg);
 
-function setLang(l){
-  LANG = l; try { localStorage.setItem(LANG_KEY, l); } catch(e) {}
-  applyStaticLang(); syncFullscreen(); syncModeHint(); syncPaneBtns();
-  buildLib(); renderOpenings(); renderAll();
-  $('#tip').textContent = TIPS()[viewMode];
-  window.View3D?.relang();
-}
-$('#langSel').onclick = e => { const l = e.target.closest('[data-lang]')?.dataset.lang; if (l && l !== LANG) setLang(l); };
 
-applyStaticLang(); syncFullscreen();
+syncFullscreen();
 buildDefs(); buildLib(); renderOpenings(); renderDims();
 $('#tip').textContent = TIPS()['2d'];
 fitView(); renderAll();
@@ -2365,7 +2299,7 @@ function buildLabels(){
   });
   const counted = ROOMS.filter(r => r.counted !== false);
   $('#roomList').innerHTML = counted.map(r => `<button data-room="${r.id}"><span>${esc(nm(state.rooms[r.id].name))}</span><small>${area(r.poly).toFixed(2)} m²</small></button>`).join('')
-    + `<button data-room="__all"><span>${tr('全屋', 'Whole home')}</span><small>${counted.reduce((a, r) => a + area(r.poly), 0).toFixed(2)} m²</small></button>`;
+    + `<button data-room="__all"><span>全屋</span><small>${counted.reduce((a, r) => a + area(r.poly), 0).toFixed(2)} m²</small></button>`;
   document.querySelectorAll('#roomList button').forEach(b => b.onclick = () => {
     document.querySelectorAll('#roomList button').forEach(x => x.classList.toggle('on', x === b));
     if (opt.mode === 'walk') setMode('orbit');
@@ -2531,10 +2465,10 @@ function updateSel(){
 
 /* ======================= 漫游 ======================= */
 // 触屏漫游：左下虚拟摇杆移动，在画面上拖动转向（iPad 不支持鼠标指针锁定）
-const HINT_ORBIT = () => COARSE ? tr('单指旋转 · 双指缩放 / 平移 · 点选家具后可拖动摆放 · 点门开关', '1 finger orbits · 2 fingers zoom / pan · select furniture to drag it · tap doors to open')
-  : tr('左键旋转 · 右键平移 · 滚轮缩放 · 选中家具后拖动可摆放 · 点击门开关', 'Left-drag orbits · right-drag pans · scroll zooms · select furniture to drag it · click doors to open');
-const HINT_TOUCHWALK = () => tr('左下摇杆移动 · 拖动画面转向 · 点门开关', 'Joystick moves · drag to look · tap doors to open');
-const HINT_WALK = () => tr('WASD 移动 · 鼠标转向 · Shift 快走 · E 开关门 · Esc 暂停', 'WASD moves · mouse looks · Shift runs · E opens doors · Esc pauses');
+const HINT_ORBIT = () => COARSE ? '单指旋转 · 双指缩放 / 平移 · 点选家具后可拖动摆放 · 点门开关'
+  : '左键旋转 · 右键平移 · 滚轮缩放 · 选中家具后拖动可摆放 · 点击门开关';
+const HINT_TOUCHWALK = () => '左下摇杆移动 · 拖动画面转向 · 点门开关';
+const HINT_WALK = () => 'WASD 移动 · 鼠标转向 · Shift 快走 · E 开关门 · Esc 暂停';
 function syncHint3d(){ $('#hint3d').textContent = opt.mode === 'orbit' ? HINT_ORBIT() : touchWalk ? HINT_TOUCHWALK() : HINT_WALK(); }
 let touchWalk = false;
 const joy = {x:0, y:0, id:null}, eul = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -2620,11 +2554,11 @@ function syncModeBtns(){ document.querySelectorAll('#modes3d .btn').forEach(b =>
 function syncCutBtns(){ document.querySelectorAll('[data-cut]').forEach(b => b.classList.toggle('on', +b.dataset.cut === opt.cut)); }
 function syncWalkTexts(){
   const t = COARSE
-    ? [tr('点击开始，从入户门进入', 'Tap to start at the front door'), tr('左下摇杆移动 · 在画面上拖动转向', 'Joystick moves · drag on screen to look'),
-       tr('点门开关 · 点「退出漫游」回到鸟瞰', 'Tap doors to open · "Exit walk" returns to orbit')]
-    : [tr('点击开始，从入户门进入', 'Click to start at the front door'),
-       tr('<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 移动 · 鼠标转向 · <kbd>Shift</kbd> 快走', '<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> move · mouse looks · <kbd>Shift</kbd> runs'),
-       tr('<kbd>E</kbd> 开关正前方的门 · <kbd>Esc</kbd> 暂停', '<kbd>E</kbd> opens the door ahead · <kbd>Esc</kbd> pauses')];
+    ? ['点击开始，从入户门进入', '左下摇杆移动 · 在画面上拖动转向',
+       '点门开关 · 点「退出漫游」回到鸟瞰']
+    : ['点击开始，从入户门进入',
+       '<kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 移动 · 鼠标转向 · <kbd>Shift</kbd> 快走',
+       '<kbd>E</kbd> 开关正前方的门 · <kbd>Esc</kbd> 暂停'];
   t.forEach((h, i) => $('#wo' + (i + 1)).innerHTML = h);
   syncHint3d();
 }
@@ -2664,11 +2598,9 @@ function loop(){
   labelRenderer.render(scene, camera);
 }
 
-function shot(){ const a = document.createElement('a'); a.download = tr('户型装修方案', 'floor-plan-design') + '-3D.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
+function shot(){ const a = document.createElement('a'); a.download = '户型装修方案' + '-3D.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
 
-function relang(){ syncWalkTexts(); if (inited) buildLabels(); }
-
-window.View3D = {enter, exit, relang, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
+window.View3D = {enter, exit, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
 </script>
 </body>
 </html>
