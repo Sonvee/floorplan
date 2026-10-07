@@ -1033,7 +1033,6 @@ $('#fileIn').onchange = e => {
   });
   e.target.value = '';
 };
-$('#reset').onclick = () => { if (confirm('恢复为示例方案？（可撤销）')){ const b = snap(); state = defaultState(); syncPlanRefs(); renderOpenings(); ui.sel = null; commit(b); renderAll(); } };
 // 横竖屏切换、表头换行等都会改变画布尺寸；尺寸从 0 恢复（如首次布局）时重新适应窗口
 // 其余尺寸变化（收起 / 展开面板等）保持画面中心不动
 let lastW = 0, lastH = 0;
