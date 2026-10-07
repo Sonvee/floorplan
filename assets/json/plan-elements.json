@@ -43,6 +43,12 @@
       "name": "飘窗",
       "glyph": "▥",
       "hint": "外凸窗台"
+    },
+    {
+      "type": "sliding",
+      "name": "滑动门窗",
+      "glyph": "⇆",
+      "hint": "双扇滑动开启"
     }
   ],
   "doors": [

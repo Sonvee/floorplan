@@ -24,6 +24,7 @@ import {
   getF,
   renderAll,
   select,
+  slidingWindowPanels,
   snap,
   snapMove,
   state,
@@ -898,6 +899,53 @@ function buildStandardWindow([x0, y0, x1, y1], top, profile){
     addWindowFrame(horizontal ? length : .06, .04, horizontal ? .06 : length, cx, y, cz);
   });
 }
+
+/**
+ * 新建滑动门窗与样例 slides 共用同一组错位、重叠玻璃窗扇。
+ * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
+ * @param {boolean} v 是否沿 Y 轴排列窗扇
+ * @param {number} top 当前剖切高度（米）
+ */
+function buildSlidingWindow(rect, v, top){
+  const paneHeight = Math.min(v ? 2.4 : 2.1, top);
+  if (paneHeight <= .001) return;
+  slidingWindowPanels(rect, v).forEach(panel => {
+    const width = M(panel.width);
+    const length = M(panel.height);
+    const x = wx(panel.x + panel.width / 2);
+    const z = wz(panel.y + panel.height / 2);
+    // 玻璃扇沿洞口方向铺开，另一方向只保留窗扇的薄厚度，
+    // 与样例 slides 的两扇错位关系保持一致。
+    const pane = new THREE.Mesh(
+      new THREE.BoxGeometry(v ? .02 : width, paneHeight, v ? length : .02),
+      glassMat
+    );
+    pane.position.set(x, paneHeight / 2, z);
+    pane.castShadow = false;
+    archUp.add(pane);
+
+    // 每扇窗扇都有独立的上下轨和两侧边框，不绘制双向箭头。
+    [paneHeight - .03, .03].forEach(y => {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(v ? .04 : width, .05, v ? length : .04),
+        frameMat
+      );
+      // 这里沿用样例的直接中心坐标，不通过 box() 再次增加半高偏移。
+      rail.position.set(x, y, z);
+      archUp.add(rail);
+    });
+    [-1, 1].forEach(edgeSign => {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(.04, paneHeight, .04), frameMat);
+      frame.position.set(
+        v ? x : x + edgeSign * width / 2,
+        paneHeight / 2,
+        v ? z + edgeSign * length / 2 : z
+      );
+      archUp.add(frame);
+    });
+  });
+}
+
 function buildArch(){
   clearGroup(archFloor); clearGroup(archUp); lampG.clear(); doors.length = 0; colliders = [];
   const top = opt.cut;
@@ -917,7 +965,7 @@ function buildArch(){
       const pl = new THREE.PointLight(0xffd9a8, 0, 7, 1.6); pl.position.set(wx(r.at[0]), H - .25, wz(r.at[1])); lampG.add(pl);
     }
   });
-  [...DOORS, ...SLIDES].forEach(d => { const [x0, y0, x1, y1] = d.rect; const s = box(M(x1-x0), .012, M(y1-y0), mat('#d8d0c0', {roughness:.3}), wx((x0+x1)/2), 0, wz((y0+y1)/2)); s.castShadow = false; archFloor.add(s); });
+  [...DOORS, ...SLIDES, ...WINS.filter(win => win[4] === 'sliding').map(rect => ({rect}))].forEach(d => { const [x0, y0, x1, y1] = d.rect; const s = box(M(x1-x0), .012, M(y1-y0), mat('#d8d0c0', {roughness:.3}), wx((x0+x1)/2), 0, wz((y0+y1)/2)); s.castShadow = false; archFloor.add(s); });
   WALLS.forEach((w, i) => {
     if (state.demolished.includes('w'+i)) return;
     wallBox(w, 0, w[4] === 'low' ? Math.min(1, top) : top);
@@ -928,6 +976,13 @@ function buildArch(){
     .forEach(([r, h]) => { if (top > h) wallBox(r, h, top); });
   WINS.forEach(r => {
     const type = r[4] || 'normal';
+    if (type === 'sliding') {
+      const vertical = r[5] === 'v' || (r[5] !== 'h' && r[3] - r[1] > r[2] - r[0]);
+      const head = vertical ? 2.4 : 2.1;
+      if (top > head) wallBox(r, head, top);
+      buildSlidingWindow(r, vertical, top);
+      return;
+    }
     const profile = windowProfile(type);
     wallBox(r, 0, Math.min(profile.sill, top));
     if (top > profile.head) wallBox(r, profile.head, top);
@@ -946,15 +1001,7 @@ function buildArch(){
     door.cur = door.a1; pivot.rotation.y = door.cur; leaf.userData.door = knob.userData.door = door;
     doors.push(door); archUp.add(pivot);
   });
-  SLIDES.forEach(({rect:[x0, y0, x1, y1], v}) => {
-    const L = M(v ? y1-y0 : x1-x0), ph = Math.min(v ? 2.4 : 2.1, top), pl = L*.55;
-    [[-1, -.02], [1, .02]].forEach(([s, off]) => {
-      const c = s < 0 ? -L/2 + pl/2 : L/2 - pl/2, x = v ? wx((x0+x1)/2) + off : wx(x0) + L/2 + c, z = v ? wz(y0) + L/2 + c : wz((y0+y1)/2) + off;
-      const p = new THREE.Mesh(new THREE.BoxGeometry(v ? .02 : pl, ph, v ? pl : .02), glassMat); p.position.set(x, ph/2, z); archUp.add(p);
-      [ph - .03, .03].forEach(y => { const fr = new THREE.Mesh(new THREE.BoxGeometry(v ? .04 : pl, .05, v ? pl : .04), frameMat); fr.position.set(x, y, z); archUp.add(fr); });
-      [-1, 1].forEach(e => { const fr = new THREE.Mesh(new THREE.BoxGeometry(.04, ph, .04), frameMat); fr.position.set(v ? x : x + e*pl/2, ph/2, v ? z + e*pl/2 : z); archUp.add(fr); });
-    });
-  });
+  SLIDES.forEach(({rect, v}) => buildSlidingWindow(rect, v, top));
   applyLight(); applyGrow();
 }
 

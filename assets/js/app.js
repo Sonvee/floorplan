@@ -224,6 +224,7 @@ function renderRooms(){
   ROOMS.forEach(r => s += `<polygon class="room" data-room="${r.id}" points="${r.poly.map(p=>p.join(',')).join(' ')}" fill="url(#m-${state.rooms[r.id].mat})"/>`);
   const sill = ([a,b,c,d]) => `<rect x="${a}" y="${b}" width="${c-a}" height="${d-b}" fill="#e2dacb" stroke="#b9b0a0" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
   DOORS.forEach(d => s += sill(d.rect)); SLIDES.forEach(d => s += sill(d.rect));
+  WINS.filter(win => win[4] === 'sliding').forEach(win => s += sill(win));
   $('#gRooms').innerHTML = s;
 }
 
@@ -253,6 +254,10 @@ function renderWalls(){
  * 不再用上下两条断开的装饰线模拟。
  */
 function planWindowMarkup(values, type = 'normal', opacity = 1) {
+  if (type === 'sliding') {
+    const vertical = values[5] === 'v' || (values[5] !== 'h' && values[3] - values[1] > values[2] - values[0]);
+    return slidingWindowMarkup(values, vertical, opacity);
+  }
   const [x0, y0, x1, y1] = values;
   const width = x1 - x0;
   const height = y1 - y0;
@@ -301,6 +306,48 @@ function planWindowMarkup(values, type = 'normal', opacity = 1) {
     <path d="M${backX} ${y0}H${frontX}V${y1}H${backX}" fill="none" stroke="#6e91ad" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
   </g>`;
 }
+const SLIDING_PANEL_RATIO = .55;
+const SLIDING_PANEL_THICKNESS = 40;
+const SLIDING_PANEL_GAP = 10;
+
+/**
+ * 返回与 plan-demo.json 的 slides 完全一致的双扇错位布局。
+ * 这里保留样例里的几何关系：每扇覆盖洞口长度 55%，两扇在中部
+ * 错位并留出 10mm 的轨道间隙；2D 和 3D 都从这组数据生成，避免样式漂移。
+ * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
+ * @param {boolean} vertical 是否沿 Y 轴排列窗扇
+ * @returns {Array<{x:number,y:number,width:number,height:number}>} 两扇窗扇的平面矩形
+ */
+function slidingWindowPanels([x0, y0, x1, y1], vertical) {
+  const length = (vertical ? y1 - y0 : x1 - x0) * SLIDING_PANEL_RATIO;
+  const middle = vertical ? (x0 + x1) / 2 : (y0 + y1) / 2;
+  const offset = (SLIDING_PANEL_THICKNESS + SLIDING_PANEL_GAP) / 2;
+  return vertical
+    ? [
+      {x: middle - offset - SLIDING_PANEL_THICKNESS / 2, y: y0, width: SLIDING_PANEL_THICKNESS, height: length},
+      {x: middle + offset - SLIDING_PANEL_THICKNESS / 2, y: y1 - length, width: SLIDING_PANEL_THICKNESS, height: length}
+    ]
+    : [
+      {x: x0, y: middle - offset - SLIDING_PANEL_THICKNESS / 2, width: length, height: SLIDING_PANEL_THICKNESS},
+      {x: x1 - length, y: middle + offset - SLIDING_PANEL_THICKNESS / 2, width: length, height: SLIDING_PANEL_THICKNESS}
+    ];
+}
+
+/**
+ * 复用样例 slides 的错位双扇图例，不使用之前的箭头或蓝色矩形样式。
+ * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
+ * @param {boolean} vertical 是否沿 Y 轴排列窗扇
+ * @param {number} opacity 绘制预览透明度
+ * @returns {string} 双扇 SVG 标记
+ */
+function slidingWindowMarkup(rect, vertical, opacity = 1){
+  const style = 'fill="#fff" stroke="#3d3a34" stroke-width="1" vector-effect="non-scaling-stroke"';
+  const panels = slidingWindowPanels(rect, vertical)
+    .map(({x, y, width, height}) => `<rect x="${x}" y="${y}" width="${width}" height="${height}" ${style}/>`)
+    .join('');
+  return `<g opacity="${opacity}">${panels}</g>`;
+}
+
 function renderOpenings(){
   let s = '';
   WINS.forEach((win, index) => {
@@ -317,10 +364,7 @@ function renderOpenings(){
     s += `<g data-door="${index}"><polygon points="${hx},${hy} ${ox},${oy} ${ox+d.c[0]*T},${oy+d.c[1]*T} ${hx+d.c[0]*T},${hy+d.c[1]*T}" fill="#fff" stroke="${col}" stroke-width="${d.entry?1.8:1}" vector-effect="non-scaling-stroke"/>`;
     s += `<path d="M${ox} ${oy}A${L} ${L} 0 0 ${sweep} ${cx} ${cy}" fill="none" ${DS} stroke-dasharray="5 3" opacity=".7"/></g>`;
   });
-  SLIDES.forEach(({rect:[x0,y0,x1,y1],v}) => {
-    if (v){ const L = y1-y0, m = (x0+x1)/2; s += `<rect x="${m-45}" y="${y0}" width="40" height="${L*.55}" fill="#fff" ${DS}/><rect x="${m+5}" y="${y1-L*.55}" width="40" height="${L*.55}" fill="#fff" ${DS}/>`; }
-    else { const L = x1-x0, m = (y0+y1)/2; s += `<rect x="${x0}" y="${m-45}" width="${L*.55}" height="40" fill="#fff" ${DS}/><rect x="${x1-L*.55}" y="${m+5}" width="${L*.55}" height="40" fill="#fff" ${DS}/>`; }
-  });
+  SLIDES.forEach(({rect, v}) => s += slidingWindowMarkup(rect, v));
   $('#gOpen').innerHTML = s;
 }
 
@@ -1076,6 +1120,7 @@ export {
   renderOpenings,
   renderRooms,
   renderWalls,
+  slidingWindowPanels,
   replaceState,
   select,
   snap,
