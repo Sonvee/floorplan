@@ -943,8 +943,8 @@ function rotateSelectedPlan(direction = 1) {
   setEntityDimensions(
     entity,
     selected.kind,
-    dimensions.width,
     dimensions.length,
+    dimensions.width,
     dimensions.axis === 'h' ? 'v' : 'h'
   );
   commitPlan(before, () => {});
