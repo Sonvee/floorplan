@@ -425,7 +425,7 @@ function dimensionMarkup(prefix, entity, kind) {
 
 function planPanelMarkup() {
   const selected = editor.selected;
-  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">点击房间、墙体、窗户或门可以编辑属性。空白区域可以拖动画布。</div></section>`;
+  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">点击房间、墙体、窗户或门可以编辑属性。空白区域可以拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
   if (selected.kind === 'room') {
     const room = ROOMS[selected.index];
     const settings = room && state.rooms[room.id];
@@ -542,6 +542,92 @@ function deleteSelected() {
     state.plan.doors.splice(selected.index, 1);
   }
   editor.selected = null;
+  commitPlan(before, () => {});
+}
+
+function nudgeSelected(dx, dy) {
+  const selected = editor.selected;
+  if (!selected) return;
+  const before = snap();
+  if (selected.kind === 'room') {
+    const room = state.plan.rooms[selected.index];
+    if (!room) return;
+    room.poly = room.poly.map(([x, y]) => [x + dx, y + dy]);
+    room.at = polygonCenter(room.poly);
+  } else if (selected.kind === 'wall') {
+    const wall = state.plan.walls[selected.index];
+    if (!wall) return;
+    for (let index = 0; index < 4; index++) wall[index] += index % 2 ? dy : dx;
+  } else if (selected.kind === 'window') {
+    const win = state.plan.wins[selected.index];
+    if (!win) return;
+    for (let index = 0; index < 4; index++) win[index] += index % 2 ? dy : dx;
+  } else if (selected.kind === 'door') {
+    const door = state.plan.doors[selected.index];
+    if (!door) return;
+    door.rect = door.rect.map((value, index) => value + (index % 2 ? dy : dx));
+    updateDoorGeometry(door);
+  }
+  commitPlan(before, () => {});
+}
+
+function rotateSelectedPlan() {
+  const selected = editor.selected;
+  if (!selected || selected.kind === 'room') return;
+  const before = snap();
+  const entity = selected.kind === 'wall'
+    ? state.plan.walls[selected.index]
+    : selected.kind === 'window'
+      ? state.plan.wins[selected.index]
+      : state.plan.doors[selected.index];
+  if (!entity) return;
+  const dimensions = entityDimensions(entity, selected.kind);
+  setEntityDimensions(entity, selected.kind, dimensions.width, dimensions.length, dimensions.axis === 'h' ? 'v' : 'h');
+  commitPlan(before, () => {});
+}
+
+function duplicateSelectedPlan() {
+  const selected = editor.selected;
+  if (!selected) return;
+  const before = snap();
+  const offset = 200;
+  let nextSelection = null;
+  if (selected.kind === 'room') {
+    const source = state.plan.rooms[selected.index];
+    if (!source) return;
+    const room = {
+      ...JSON.parse(JSON.stringify(source)),
+      id: nextId('r'),
+      poly: source.poly.map(([x, y]) => [x + offset, y + offset]),
+      at: [source.at[0] + offset, source.at[1] + offset]
+    };
+    state.plan.rooms.push(room);
+    state.rooms[room.id] = {...state.rooms[source.id], name: `${state.rooms[source.id]?.name || room.name} 副本`};
+    nextSelection = {kind: 'room', index: state.plan.rooms.length - 1, id: room.id};
+  } else if (selected.kind === 'wall') {
+    const source = state.plan.walls[selected.index];
+    if (!source) return;
+    const wall = [...source];
+    for (let index = 0; index < 4; index++) wall[index] += offset;
+    state.plan.walls.push(wall);
+    nextSelection = {kind: 'wall', index: state.plan.walls.length - 1};
+  } else if (selected.kind === 'window') {
+    const source = state.plan.wins[selected.index];
+    if (!source) return;
+    const win = [...source];
+    for (let index = 0; index < 4; index++) win[index] += offset;
+    state.plan.wins.push(win);
+    nextSelection = {kind: 'window', index: state.plan.wins.length - 1};
+  } else if (selected.kind === 'door') {
+    const source = state.plan.doors[selected.index];
+    if (!source) return;
+    const door = JSON.parse(JSON.stringify(source));
+    door.rect = door.rect.map((value, index) => value + offset);
+    updateDoorGeometry(door);
+    state.plan.doors.push(door);
+    nextSelection = {kind: 'door', index: state.plan.doors.length - 1};
+  }
+  editor.selected = nextSelection;
   commitPlan(before, () => {});
 }
 
@@ -809,6 +895,46 @@ function onDoubleClick(event) {
   if (editor.draft.points.length >= 3) finishRoom();
 }
 
+function onPlanKeyDown(event) {
+  if (!editor.active || event.target.matches('input,select,textarea')) return;
+  const key = event.key.toLowerCase();
+  const modifier = event.ctrlKey || event.metaKey;
+  const consume = () => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+  if ((key === 'delete' || key === 'backspace') && (editor.selected || editor.draft.kind)) {
+    consume();
+    if (editor.draft.kind) setMode('edit');
+    else deleteSelected();
+    return;
+  }
+  if (modifier && key === 'd' && editor.selected) {
+    consume();
+    duplicateSelectedPlan();
+    return;
+  }
+  if (!modifier && key === 'r' && editor.selected) {
+    consume();
+    rotateSelectedPlan();
+    return;
+  }
+  if (!modifier && ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(key) && editor.selected) {
+    consume();
+    const step = event.shiftKey ? 100 : 10;
+    const dx = key === 'arrowleft' ? -step : key === 'arrowright' ? step : 0;
+    const dy = key === 'arrowup' ? -step : key === 'arrowdown' ? step : 0;
+    nudgeSelected(dx, dy);
+    return;
+  }
+  if (key === 'escape') {
+    consume();
+    if (editor.draft.kind) setMode('edit');
+    else selectPlan(null);
+  }
+}
+
 function init() {
   ensurePlanData();
   syncPlanToolLabels();
@@ -822,14 +948,8 @@ function init() {
   planSvg.addEventListener('pointerup', onPointerUp, true);
   planSvg.addEventListener('pointercancel', onPointerCancel, true);
   planSvg.addEventListener('dblclick', onDoubleClick, true);
-  document.addEventListener('keydown', event => {
-    if (!editor.active || event.target.matches('input,select,textarea')) return;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      if (editor.draft.kind) setMode('edit');
-      else selectPlan(null);
-    }
-  });
+  // Capture 阶段优先于 app.js 的家具快捷键，避免户型选中对象被家具逻辑抢先消费.
+  document.addEventListener('keydown', onPlanKeyDown, true);
   window.PlanEditor.syncOverlay();
 }
 
