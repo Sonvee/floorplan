@@ -12,6 +12,8 @@ const PLAN_RULES = {
   grid: 10,
   snapTolerance: 12,
   orthogonalAngle: 10,
+  editOrthogonalAngle: 3,
+  editSnapTolerance: 4,
   wallThickness: 180,
   windowThickness: 160,
   floorWindowThickness: 220,
@@ -36,6 +38,7 @@ const editor = {
   type: null,
   selected: null,
   draft: {kind: null, type: null, points: [], start: null, current: null},
+  guides: [],
   drag: null
 };
 
@@ -105,9 +108,9 @@ function screenToPlan(event) {
   return point.matrixTransform(planSvg.getScreenCTM().inverse());
 }
 
-function rawSnap(point) {
+function rawSnap(point, snapTolerance = PLAN_RULES.snapTolerance) {
   const step = PLAN_RULES.grid;
-  const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
+  const tolerance = snapTolerance / Math.max(view.s, 0.001);
   let x = Math.round(point.x / step) * step;
   let y = Math.round(point.y / step) * step;
   const candidates = [];
@@ -122,15 +125,40 @@ function rawSnap(point) {
   return {x, y};
 }
 
-function snapRoomPoint(point, previous) {
-  const next = rawSnap(point);
+function snapRoomPoint(point, previous, {
+  snapTolerance = PLAN_RULES.snapTolerance,
+  orthogonalAngle = PLAN_RULES.orthogonalAngle
+} = {}) {
+  const next = rawSnap(point, snapTolerance);
   if (!previous) return next;
   const dx = Math.abs(next.x - previous.x);
   const dy = Math.abs(next.y - previous.y);
-  const angle = PLAN_RULES.orthogonalAngle * Math.PI / 180;
+  const angle = orthogonalAngle * Math.PI / 180;
   if (dx > 0 && dy / dx <= Math.tan(angle)) next.y = previous.y;
   else if (dy > 0 && dx / dy <= Math.tan(angle)) next.x = previous.x;
   return next;
+}
+
+function updateRoomSnapGuides(next) {
+  editor.guides = next ? [
+    {axis: 'h', value: next.y},
+    {axis: 'v', value: next.x}
+  ] : [];
+}
+
+function snapGuideMarkup() {
+  if (!editor.guides.length) return '';
+  const width = planSvg.clientWidth / Math.max(view.s, 0.001);
+  const height = planSvg.clientHeight / Math.max(view.s, 0.001);
+  const x0 = view.x0 - 500;
+  const y0 = view.y0 - 500;
+  const x1 = view.x0 + width + 500;
+  const y1 = view.y0 + height + 500;
+  const style = 'stroke="#6b8588" stroke-width="1" stroke-dasharray="8 8" opacity=".42" vector-effect="non-scaling-stroke" pointer-events="none"';
+  return editor.guides.map(guide => guide.axis === 'h'
+    ? `<line x1="${x0}" y1="${guide.value}" x2="${x1}" y2="${guide.value}" ${style}/>`
+    : `<line x1="${guide.value}" y1="${y0}" x2="${guide.value}" y2="${y1}" ${style}/>`
+  ).join('');
 }
 
 function snapOrthogonal(point, start) {
@@ -343,7 +371,7 @@ function drawDraft() {
   if (!draftLayer) return;
   const draft = editor.draft;
   const line = 'stroke="#2f5d62" stroke-width="1.6" vector-effect="non-scaling-stroke"';
-  let output = '';
+  let output = snapGuideMarkup();
   if (draft.kind === 'room' && draft.points.length) {
     output += `<polyline points="${draft.points.map(point => `${point[0]},${point[1]}`).join(' ')}" fill="rgba(47,93,98,.08)" ${line} stroke-dasharray="6 4"/>`;
     for (let index = 0; index < draft.points.length - 1; index++) {
@@ -635,6 +663,7 @@ function closeDrawingMode(selection = null) {
   editor.mode = 'edit';
   editor.type = null;
   editor.draft = emptyDraft();
+  editor.guides = [];
   editor.selected = selection;
   planSvg.setAttribute('class', 'tool-plan-edit');
   updateToolHighlight();
@@ -693,11 +722,16 @@ function moveSelected(point) {
     const room = state.plan.rooms[drag.roomIndex];
     if (!room) return;
     const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
-    const next = snapRoomPoint(point, {x: previous[0], y: previous[1]});
+    const next = snapRoomPoint(point, {x: previous[0], y: previous[1]}, {
+      snapTolerance: PLAN_RULES.editSnapTolerance,
+      orthogonalAngle: PLAN_RULES.editOrthogonalAngle
+    });
+    updateRoomSnapGuides(next);
     room.poly[drag.pointIndex] = [next.x, next.y];
     room.at = polygonCenter(room.poly);
     renderRooms();
     renderLabels();
+    drawDraft();
   } else if (drag.kind === 'entity') {
     const dx = Math.round((point.x - drag.anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
     const dy = Math.round((point.y - drag.anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
@@ -737,6 +771,7 @@ function setMode(mode, type = null) {
   editor.type = type;
   editor.selected = null;
   editor.draft = mode === 'edit' ? emptyDraft() : {kind: mode, type, points: [], start: null, current: null};
+  editor.guides = [];
   planSvg.setAttribute('class', mode === 'edit' ? 'tool-plan-edit' : `tool-plan-${mode}`);
   updateToolHighlight();
   drawDraft();
@@ -759,6 +794,7 @@ function deactivatePlan() {
   editor.active = false;
   editor.selected = null;
   editor.drag = null;
+  editor.guides = [];
   editor.draft = emptyDraft();
   planTools.hidden = true;
   furnitureLibrary.hidden = false;
@@ -781,6 +817,7 @@ function onPointerDown(event) {
   event.stopPropagation();
   const point = screenToPlan(event);
   if (editor.mode === 'room') {
+    editor.guides = [];
     const first = editor.draft.points[0];
     if (editor.draft.points.length >= 3 && first && distance(point, {x: first[0], y: first[1]}) <= Math.max(180, 18 / view.s)) {
       finishRoom();
@@ -790,6 +827,7 @@ function onPointerDown(event) {
     const previous = editor.draft.points.at(-1);
     const next = snapRoomPoint(point, previous && {x: previous[0], y: previous[1]});
     if (!previous || distance(next, {x: previous[0], y: previous[1]}) > 20) editor.draft.points.push([next.x, next.y]);
+    updateRoomSnapGuides(next);
     editor.draft.current = next;
     drawDraft();
     planSvg.setPointerCapture(event.pointerId);
@@ -803,6 +841,7 @@ function onPointerDown(event) {
     planSvg.setPointerCapture(event.pointerId);
     return;
   }
+  editor.guides = [];
   const vertex = selectedRoomVertex(point);
   if (vertex !== null) {
     editor.drag = {kind: 'room-point', roomIndex: editor.selected.index, pointIndex: vertex, anchor: point, before: snap(), moved: false};
@@ -831,6 +870,7 @@ function onPointerMove(event) {
   if (editor.mode === 'room' && editor.draft.points.length) {
     const previous = editor.draft.points.at(-1);
     editor.draft.current = snapRoomPoint(point, {x: previous[0], y: previous[1]});
+    updateRoomSnapGuides(editor.draft.current);
     drawDraft();
   } else if (editor.draft.start && ['wall', 'window', 'door'].includes(editor.mode)) {
     editor.draft.current = snapOrthogonal(point, editor.draft.start);
@@ -860,6 +900,8 @@ function onPointerUp(event) {
   }
   const drag = editor.drag;
   editor.drag = null;
+  editor.guides = [];
+  drawDraft();
   releasePointer(event);
   if (!drag || drag.kind === 'pan') return;
   if (drag.moved) {
@@ -874,6 +916,8 @@ function onPointerCancel(event) {
   event.preventDefault();
   event.stopPropagation();
   releasePointer(event);
+  editor.guides = [];
+  drawDraft();
   if (editor.draft.kind) {
     editor.draft = emptyDraft();
     drawDraft();
