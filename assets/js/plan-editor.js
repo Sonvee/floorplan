@@ -305,6 +305,43 @@ function snapEntityTranslation(target, baseRect, point, anchor) {
   return {dx, dy, guide: best.guide};
 }
 
+/**
+ * 将房间整体移动到网格，并把房间顶点/中心吸附到其他户型实体。
+ * @param {{kind: string, index: number}} target 当前房间
+ * @param {number[][]} basePolygon 移动前的房间顶点
+ * @param {{x: number, y: number}} point 当前鼠标户型坐标
+ * @param {{x: number, y: number}} anchor 开始拖拽时的鼠标户型坐标
+ * @returns {{dx: number, dy: number, guide: {x: number, y: number}|null}}
+ */
+function snapRoomTranslation(target, basePolygon, point, anchor) {
+  let dx = Math.round((point.x - anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
+  let dy = Math.round((point.y - anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
+  if (!snappingEnabled()) return {dx, dy, guide: null};
+
+  const movedPolygon = basePolygon.map(([x, y]) => [x + dx, y + dy]);
+  const anchors = movedPolygon.map(([x, y]) => ({x, y}));
+  const center = polygonCenter(movedPolygon);
+  anchors.push({x: center[0], y: center[1]});
+  const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
+  let best = null;
+  anchors.forEach(anchorPoint => {
+    const geometry = geometrySnap(anchorPoint, tolerance, target);
+    if (!geometry) return;
+    let adjustX = geometry.x - anchorPoint.x;
+    let adjustY = geometry.y - anchorPoint.y;
+    if (geometry.kind === 'segment' && geometry.axis === 'h') adjustX = 0;
+    if (geometry.kind === 'segment' && geometry.axis === 'v') adjustY = 0;
+    const score = Math.abs(adjustX) + Math.abs(adjustY);
+    if (!best || score < best.score) {
+      best = {adjustX, adjustY, score, guide: {x: geometry.x, y: geometry.y}};
+    }
+  });
+  if (!best) return {dx, dy, guide: null};
+  dx += best.adjustX;
+  dy += best.adjustY;
+  return {dx, dy, guide: best.guide};
+}
+
 function primitiveWidth(kind, type) {
   if (kind === 'wall') return PLAN_RULES.wallThickness;
   if (kind === 'door') return PLAN_RULES.doorThickness;
@@ -855,7 +892,23 @@ function finishPrimitive() {
 function moveSelected(point) {
   const drag = editor.drag;
   if (!drag) return;
-  if (drag.kind === 'room-point') {
+  if (drag.kind === 'room') {
+    const room = state.plan.rooms[drag.roomIndex];
+    if (!room) return;
+    const translation = snapRoomTranslation(
+      {kind: 'room', index: drag.roomIndex},
+      drag.base,
+      point,
+      drag.anchor
+    );
+    const {dx, dy} = translation;
+    updateSnapGuides(translation.guide || {x: point.x, y: point.y});
+    room.poly = drag.base.map(([x, y]) => [x + dx, y + dy]);
+    room.at = polygonCenter(room.poly);
+    renderRooms();
+    renderLabels();
+    drawDraft();
+  } else if (drag.kind === 'room-point') {
     const room = state.plan.rooms[drag.roomIndex];
     if (!room) return;
     const previous = room.poly[drag.pointIndex > 0 ? drag.pointIndex - 1 : room.poly.length - 1];
@@ -993,7 +1046,17 @@ function onPointerDown(event) {
   const target = hitTest(point);
   if (target) {
     selectPlan(target);
-    if (target.kind !== 'room') {
+    if (target.kind === 'room') {
+      const room = ROOMS[target.index];
+      editor.drag = {
+        kind: 'room',
+        roomIndex: target.index,
+        anchor: point,
+        base: room.poly.map(([x, y]) => [x, y]),
+        before: snap(),
+        moved: false
+      };
+    } else {
       const entity = target.kind === 'wall' ? WALLS[target.index] : target.kind === 'window' ? WINS[target.index] : DOORS[target.index];
       editor.drag = {kind: 'entity', target, anchor: point, base: JSON.parse(JSON.stringify(entity)), before: snap(), moved: false};
     }
