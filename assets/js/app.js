@@ -433,7 +433,7 @@ function overviewPanel(){
     <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div>
       <div><small>拆除墙体</small><span class="big">${fmt(demLen,1)}</span> m</div></div>
     <div class="actions"><button class="btn" id="clearMeasure">清除测量 (${state.measures.length})</button>
-      <button class="btn danger" id="clearFurn">清空布置</button></div></section>
+      <button class="btn danger" id="clearFurn">清空家具</button></div></section>
   ${COARSE ? `<section><h3>触屏操作</h3><div class="kbd">
     <kbd>单指拖动</kbd><span>空白处平移画面</span><kbd>双指</kbd><span>捏合缩放、拖动平移</span>
     <kbd>家具库</kbd><span>点一下放到画面中央，或按住向右拖到指定位置</span>
@@ -475,7 +475,25 @@ function clearLayout(){
   if (!n) return toast('当前没有布置任何家具');
   if (!confirm(`确定清空全部 ${n} 件家具 / 家电吗？\n墙体、地面材料和测量线会保留，可点「撤销」恢复。`)) return;
   ui.sel = null; mutate(() => state.furniture = []);
-  toast('已清空布置，可点「撤销」恢复');
+  toast('已清空家具，可点「撤销」恢复');
+}
+
+function clearCanvas(){
+  const hasContent = state.furniture.length || state.plan.walls.length || state.plan.wins.length
+    || state.plan.doors.length || state.plan.slides.length || state.plan.rooms.length
+    || state.plan.dimensions.length || Object.keys(state.rooms).length
+    || state.demolished.length || state.measures.length;
+  if (!hasContent) return toast('当前画布已经为空');
+  if (!confirm('确定清空整个画布吗？\n家具、墙体、门窗、房间、地面材料、拆改标记和测量线都会删除，可点「撤销」恢复。')) return;
+  ui.sel = null;
+  ui.mA = null;
+  ui.mCur = null;
+  mutate(() => {
+    state = defaultState();
+    syncPlanRefs();
+    renderOpenings();
+  });
+  toast('已清空画布，可点「撤销」恢复');
 }
 
 /* 侧栏开合：which = 'lib' | 'panel' | null，open 不传则切换。
@@ -953,6 +971,7 @@ $('#s60').onclick = () => { setRatio(60); toast('已按 1:60 显示（与原始�
 $('#s100').onclick = () => setRatio(100);
 $('#undo').onclick = undo; $('#redo').onclick = redo;
 $('#clearAll').onclick = clearLayout;
+$('#clearCanvas').onclick = clearCanvas;
 
 /* 全屏：标准 API + Safari（iPad）的 webkit 前缀版本 */
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
