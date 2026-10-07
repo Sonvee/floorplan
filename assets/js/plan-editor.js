@@ -1091,6 +1091,22 @@ function moveDoorEntityDuringDrag(door, baseDoor, dx, dy) {
   return true;
 }
 
+/**
+ * 窗户拖动时同时刷新门槛层和窗扇层。
+ * 滑动门窗由 gRooms 的门槛与 gOpen 的双扇实体共同组成，
+ * 只刷新 gOpen 会让门槛/虚框暂时停留在旧位置。
+ */
+function moveWindowEntityDuringDrag(windowEntity, baseWindow, dx, dy) {
+  if (!windowEntity || !Array.isArray(baseWindow)) return false;
+  for (let index = 0; index < 4; index++) {
+    windowEntity[index] = baseWindow[index] + (index % 2 ? dy : dx);
+  }
+  syncPlanRefs();
+  renderRooms();
+  renderOpenings();
+  return true;
+}
+
 function moveSelected(point) {
   const drag = editor.drag;
   if (!drag) return;
@@ -1142,10 +1158,7 @@ function moveSelected(point) {
       syncPlanRefs();
       renderWalls();
     } else if (kind === 'window') {
-      const win = state.plan.wins[drag.target.index];
-      for (let index = 0; index < 4; index++) win[index] = drag.base[index] + (index % 2 ? dy : dx);
-      syncPlanRefs();
-      renderOpenings();
+      moveWindowEntityDuringDrag(state.plan.wins[drag.target.index], drag.base, dx, dy);
     } else if (kind === 'door') {
       moveDoorEntityDuringDrag(state.plan.doors[drag.target.index], drag.base, dx, dy);
     }
