@@ -10,6 +10,26 @@ import {PointerLockControls} from 'three/addons/controls/PointerLockControls.js'
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+import {$, area, esc} from './utils.js';
+import {
+  COARSE,
+  DOORS,
+  ROOMS,
+  SLIDES,
+  TAP,
+  WALLS,
+  WINS,
+  closeDrawers,
+  commit,
+  getF,
+  renderAll,
+  select,
+  snap,
+  snapMove,
+  state,
+  ui,
+  view
+} from './app.js';
 
 const stage = $('#stage'), host = $('#view3d');
 const OX = 6000, OY = 5300, H = 2.8, FOV = 45;       // 户型中心放在世界原点，层高 2.8 m
@@ -63,7 +83,7 @@ function init(){
 
   const cv = renderer.domElement; let downAt = null, look = null;
   cv.addEventListener('pointerdown', e => {
-    downAt = [e.clientX, e.clientY]; window.closeDrawers();
+    downAt = [e.clientX, e.clientY]; closeDrawers();
     if (touchWalk && !look){ look = {id:e.pointerId, x:e.clientX, y:e.clientY}; cv.setPointerCapture(e.pointerId); }
   });
   cv.addEventListener('pointermove', e => {
@@ -107,9 +127,9 @@ function init(){
     if (anim || opt.mode !== 'orbit' || !tap) return;
     const h = pick(e);
     if (h?.door) h.door.open = !h.door.open;
-    else if (h?.fid) window.select({kind:'furn', id:h.fid});
-    else if (h?.room) window.select({kind:'room', id:h.room});
-    else window.select(null);
+    else if (h?.fid) select({kind:'furn', id:h.fid});
+    else if (h?.room) select({kind:'room', id:h.room});
+    else select(null);
   });
   new ResizeObserver(() => {
     renderer.setSize(SW(), SH()); labelRenderer.setSize(SW(), SH());
@@ -1157,7 +1177,7 @@ function setMode(m){
   if (anim) return;
   opt.mode = m; syncModeBtns();
   if (m === 'walk'){
-    window.select(null);
+    select(null);
     if (opt.cut < H){ opt.cut = H; syncCutBtns(); sync(); }
     orbit.enabled = false; fly = null;
     const entry = DOORS.find(d => d.entry) || DOORS[0];
@@ -1237,7 +1257,7 @@ function bindUI(){
   document.querySelectorAll('[data-cut]').forEach(b => b.onclick = () => { if (opt.mode === 'walk') return; opt.cut = +b.dataset.cut; syncCutBtns(); sync(); });
   document.querySelectorAll('#toggles3d .btn').forEach(b => b.onclick = () => {
     const k = b.dataset.t; opt[k] = !opt[k]; b.classList.toggle('on', opt[k]);
-    if (k === 'furn'){ furnG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn') window.select(null); }
+    if (k === 'furn'){ furnG.visible = opt.furn; if (!opt.furn && ui.sel?.kind === 'furn') select(null); }
     if (k === 'labels') showLabels(opt.labels && opt.mode === 'orbit' && !anim);
     if (k === 'night') applyLight();
   });
@@ -1262,4 +1282,5 @@ function loop(){
 
 function shot(){ const a = document.createElement('a'); a.download = '户型装修方案' + '-3D.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
 
-window.View3D = {enter, exit, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
+export const View3D = {enter, exit, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
+window.View3D = View3D;

@@ -1,11 +1,33 @@
+import {$, area, esc, fmt, loadJson, perim} from './utils.js';
+import {
+  DOORS,
+  ROOMS,
+  SLIDES,
+  WALLS,
+  WINS,
+  applyView,
+  commit,
+  drawer,
+  planWindowMarkup,
+  renderAll,
+  renderLabels,
+  renderOpenings,
+  renderRooms,
+  renderWalls,
+  replaceState,
+  snap,
+  state,
+  syncPlanRefs,
+  ui,
+  view
+} from './app.js';
 /* 户型编辑器：房间、墙体、窗户和门的独立绘制与编辑逻辑。 */
-const $p = selector => document.querySelector(selector);
-const planTools = $p('#planTools');
-const furnitureLibrary = $p('#lib');
-const planSvg = $p('#plan');
-const draftLayer = $p('#gDraft');
-const selectionLayer = $p('#gSel');
-const planPanel = $p('#panel');
+const planTools = $('#planTools');
+const furnitureLibrary = $('#lib');
+const planSvg = $('#plan');
+const draftLayer = $('#gDraft');
+const selectionLayer = $('#gSel');
+const planPanel = $('#panel');
 const planTypes = loadJson('assets/json/plan-elements.json');
 
 const PLAN_RULES = {
@@ -585,7 +607,7 @@ function dimensionRectText(values, color = '#b5653a') {
 }
 
 function drawWindowPreview(values, type, opacity = 1) {
-  const output = window.planWindowMarkup?.(values, type, opacity) || '';
+  const output = planWindowMarkup(values, type, opacity);
   return `<g data-plan-window-preview="${type}">${output}</g>`;
 }
 
@@ -759,8 +781,8 @@ function selectPlan(selection) {
 }
 
 function bindRoomDimensions(room) {
-  const length = $p('#planRoomLength');
-  const width = $p('#planRoomWidth');
+  const length = $('#planRoomLength');
+  const width = $('#planRoomWidth');
   if (!length || !width) return;
   const update = () => commitPlan(snap(), () => setRoomRectDimensions(room, length.value, width.value));
   length.onchange = update;
@@ -768,9 +790,9 @@ function bindRoomDimensions(room) {
 }
 
 function bindDimensions(prefix, entity, kind) {
-  const axis = $p(`#${prefix}Axis`);
-  const length = $p(`#${prefix}Length`);
-  const width = $p(`#${prefix}Width`);
+  const axis = $(`#${prefix}Axis`);
+  const length = $(`#${prefix}Length`);
+  const width = $(`#${prefix}Width`);
   const update = () => commitPlan(snap(), () => {
     const current = entityDimensions(entity, kind);
     setEntityDimensions(entity, kind,
@@ -790,7 +812,7 @@ function renderPlanPanel() {
   if (selected.kind === 'room') {
     const room = ROOMS[selected.index];
     if (!room) return;
-    $p('#planRoomName').onchange = event => commitPlan(snap(), () => {
+    $('#planRoomName').onchange = event => commitPlan(snap(), () => {
       state.rooms[room.id].name = event.target.value.trim() || state.rooms[room.id].name;
       room.name = state.rooms[room.id].name;
     });
@@ -798,14 +820,14 @@ function renderPlanPanel() {
   } else if (selected.kind === 'wall') {
     const wall = WALLS[selected.index];
     if (!wall) return;
-    const type = $p('#planWallType');
+    const type = $('#planWallType');
     type.value = wall[4];
     type.onchange = event => commitPlan(snap(), () => wall[4] = safeWallType(event.target.value));
     bindDimensions('planWall', wall, 'wall');
   } else if (selected.kind === 'window') {
     const win = WINS[selected.index];
     if (!win) return;
-    const type = $p('#planWindowType');
+    const type = $('#planWindowType');
     type.value = win[4];
     type.onchange = event => commitPlan(snap(), () => {
       win[4] = safeWindowType(event.target.value);
@@ -818,15 +840,15 @@ function renderPlanPanel() {
     });
     bindDimensions('planWindow', win, 'window');
     if (win[4] === 'bay') {
-      const side = $p('#planBaySide');
-      const depth = $p('#planBayDepth');
+      const side = $('#planBaySide');
+      const depth = $('#planBayDepth');
       side.onchange = event => commitPlan(snap(), () => win[6] = Number(event.target.value) === 1 ? 1 : -1);
       depth.onchange = event => commitPlan(snap(), () => win[7] = clampPositive(event.target.value, PLAN_RULES.bayWindowDepth, 240));
     }
   } else {
     const door = DOORS[selected.index];
     if (!door) return;
-    const swing = $p('#planDoorSwing');
+    const swing = $('#planDoorSwing');
     swing.value = door.swing;
     swing.onchange = event => commitPlan(snap(), () => {
       door.swing = safeDoorSwing(event.target.value);
@@ -834,8 +856,8 @@ function renderPlanPanel() {
     });
     bindDimensions('planDoor', door, 'door');
   }
-  $p('#planDelete').onclick = deleteSelected;
-  $p('#planBack').onclick = () => selectPlan(null);
+  $('#planDelete').onclick = deleteSelected;
+  $('#planBack').onclick = () => selectPlan(null);
 }
 
 function deleteSelected() {
@@ -1160,8 +1182,8 @@ function activatePlan() {
   furnitureLibrary.hidden = true;
   setMode('edit');
   drawer('lib', true);
-  $p('#tgPlan').classList.add('on');
-  $p('#tgLib').classList.remove('on');
+  $('#tgPlan').classList.add('on');
+  $('#tgLib').classList.remove('on');
   renderPlanPanel();
 }
 
@@ -1177,8 +1199,8 @@ function deactivatePlan() {
   updateToolHighlight();
   selectionLayer.innerHTML = '';
   drawDraft();
-  $p('#tgPlan').classList.remove('on');
-  $p('#tgLib').classList.add('on');
+  $('#tgPlan').classList.remove('on');
+  $('#tgLib').classList.add('on');
   renderAll();
 }
 
@@ -1343,7 +1365,7 @@ function onPointerCancel(event) {
   editor.drag = null;
   drawSelection();
   if (drag?.moved) {
-    state = JSON.parse(drag.before);
+    replaceState(JSON.parse(drag.before));
     syncPlanRefs();
     renderAll();
   }
@@ -1399,8 +1421,8 @@ function onPlanKeyDown(event) {
 function init() {
   ensurePlanData();
   syncPlanToolLabels();
-  $p('#tgPlan').onclick = activatePlan;
-  $p('#tgLib').onclick = deactivatePlan;
+  $('#tgPlan').onclick = activatePlan;
+  $('#tgLib').onclick = deactivatePlan;
   document.querySelectorAll('[data-plan-tool]').forEach(button => {
     button.onclick = () => setMode(button.dataset.planTool, button.dataset.planType || null);
   });
@@ -1417,7 +1439,7 @@ function init() {
 /**
  * 对原有家具渲染流程提供户型编辑器的最小公共接口。
  */
-const PlanEditor = {
+export const PlanEditor = {
   init,
   isActive: () => editor.active,
   syncOverlay() {
