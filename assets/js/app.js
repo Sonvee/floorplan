@@ -561,6 +561,7 @@ function drawer(which, open){
   if (n){
     Object.entries(els).forEach(([k, el]) => el.classList.toggle('open', k === which && (open ?? !el.classList.contains('open'))));
   } else {
+    if (which === null && ['plan', 'lib', 'none'].includes(panes.leftMode)) panes.hideLib = panes.leftMode === 'none';
     Object.values(els).forEach(el => el.classList.remove('open'));
     if (which){
       const k = which === 'lib' ? 'hideLib' : 'hidePanel';

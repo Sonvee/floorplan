@@ -1474,6 +1474,7 @@ function init() {
   if (savedLeftMode === 'plan') activatePlan();
   else if (savedLeftMode === 'lib') deactivatePlan('lib');
   else if (savedLeftMode === 'none') deactivatePlan('none');
+  document.documentElement.classList.remove('prehide-lib', 'prehide-panel');
   document.querySelectorAll('[data-plan-tool]').forEach(button => {
     button.onclick = () => setMode(button.dataset.planTool, button.dataset.planType || null);
   });

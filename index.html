@@ -17,6 +17,14 @@
     }
   }
   </script>
+  <script>
+  try {
+    const panes = JSON.parse(localStorage.getItem('huxing-panes') || '{}');
+    const root = document.documentElement;
+    if (panes.leftMode === 'none' || (panes.leftMode == null && panes.hideLib)) root.classList.add('prehide-lib');
+    if (panes.hidePanel) root.classList.add('prehide-panel');
+  } catch (e) {}
+  </script>
 </head>
 <body>
 <div class="app">
