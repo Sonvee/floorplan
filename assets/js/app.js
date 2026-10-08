@@ -552,7 +552,8 @@ function clearCanvas(){
 }
 
 /* 侧栏开合：which = 'lib' | 'panel' | null，open 不传则切换。
- * 宽屏：侧栏在布局中收起 / 展开（记住选择）；窄屏：侧栏是浮层抽屉，一次只开一个，which = null 表示全部关闭 */
+ * 宽屏：侧栏在布局中收起 / 展开（记住选择）；窄屏：侧栏是浮层抽屉，一次只开一个，which = null 表示全部关闭。
+ * 左侧模式（户型 / 家具 / 关闭）统一记录到本地存储。 */
 const PANES = 'huxing-panes';
 const panes = (() => { try { return JSON.parse(localStorage.getItem(PANES)) || {}; } catch(e) { return {}; } })();
 function drawer(which, open){
@@ -564,8 +565,14 @@ function drawer(which, open){
     if (which){
       const k = which === 'lib' ? 'hideLib' : 'hidePanel';
       panes[k] = open === undefined ? !panes[k] : !open;
-      try { localStorage.setItem(PANES, JSON.stringify(panes)); } catch(e) {}
     }
+  }
+  if (which === 'lib'){
+    const libVisible = n ? els.lib.classList.contains('open') : !panes.hideLib;
+    panes.leftMode = window.PlanEditor?.isActive?.() ? 'plan' : libVisible ? 'lib' : 'none';
+  }
+  if (which && (!n || which === 'lib')){
+    try { localStorage.setItem(PANES, JSON.stringify(panes)); } catch(e) {}
   }
   app.classList.toggle('hide-lib', !!panes.hideLib); app.classList.toggle('hide-panel', !!panes.hidePanel);
   syncPaneBtns();

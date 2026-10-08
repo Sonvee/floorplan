@@ -29,6 +29,7 @@ const draftLayer = $('#gDraft');
 const selectionLayer = $('#gSel');
 const planPanel = $('#panel');
 const planTypes = loadJson('assets/json/plan-elements.json');
+const PANES = 'huxing-panes';
 
 const PLAN_RULES = {
   grid: 10,
@@ -1230,7 +1231,7 @@ function activatePlan() {
   renderPlanPanel();
 }
 
-function deactivatePlan() {
+function deactivatePlan(leftMode = 'lib') {
   editor.active = false;
   editor.selected = null;
   editor.drag = null;
@@ -1243,7 +1244,8 @@ function deactivatePlan() {
   selectionLayer.innerHTML = '';
   drawDraft();
   $('#tgPlan').classList.remove('on');
-  $('#tgLib').classList.add('on');
+  $('#tgLib').classList.toggle('on', leftMode === 'lib');
+  drawer('lib', leftMode === 'lib');
   renderAll();
 }
 
@@ -1465,8 +1467,13 @@ function onPlanKeyDown(event) {
 function init() {
   ensurePlanData();
   syncPlanToolLabels();
-  $('#tgPlan').onclick = activatePlan;
-  $('#tgLib').onclick = deactivatePlan;
+  $('#tgPlan').onclick = () => editor.active ? deactivatePlan('none') : activatePlan();
+  $('#tgLib').onclick = () => editor.active ? deactivatePlan('lib') : drawer('lib');
+  let savedLeftMode = null;
+  try { savedLeftMode = JSON.parse(localStorage.getItem(PANES))?.leftMode; } catch(e) {}
+  if (savedLeftMode === 'plan') activatePlan();
+  else if (savedLeftMode === 'lib') deactivatePlan('lib');
+  else if (savedLeftMode === 'none') deactivatePlan('none');
   document.querySelectorAll('[data-plan-tool]').forEach(button => {
     button.onclick = () => setMode(button.dataset.planTool, button.dataset.planType || null);
   });

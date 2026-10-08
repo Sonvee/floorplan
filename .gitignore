@@ -12,7 +12,6 @@ desktop.ini
 # 依赖与构建产物（如以后引入）
 node_modules/
 dist/
-build/
 
 # 日志与临时文件
 *.log
