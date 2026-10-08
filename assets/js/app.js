@@ -652,8 +652,8 @@ function bindFurnPanel(f){
 }
 
 /* ======================= 操作 ======================= */
-function select(sel){ ui.sel = sel; renderSel(); renderPanel(); }
-function rotateSel(d){ if (ui.sel?.kind==='furn') mutate(() => { const f = getF(ui.sel.id); f.rot = norm(f.rot + d); }); }
+function select(sel){ ui.sel = ui.tool === 'preview' ? null : sel; renderSel(); renderPanel(); }
+function rotateSel(d){ if (ui.tool !== 'preview' && ui.sel?.kind==='furn') mutate(() => { const f = getF(ui.sel.id); f.rot = norm(f.rot + d); }); }
 function deleteSel(){ if (ui.sel?.kind==='furn'){ const id = ui.sel.id; ui.sel = null; mutate(() => state.furniture = state.furniture.filter(f => f.id !== id)); } }
 function duplicateSel(){
   if (ui.sel?.kind !== 'furn') return;
@@ -683,6 +683,10 @@ function addItem(it, x, y){
 }
 function setTool(t){
   ui.tool = t; ui.mA = null; ui.mCur = null;
+  if (t === 'preview') {
+    select(null);
+    window.PlanEditor?.setPreview?.();
+  }
   svg.setAttribute('class', 'tool-' + t);
   document.querySelectorAll('#tools .btn').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   syncModeHint();
@@ -690,6 +694,7 @@ function setTool(t){
 }
 function syncModeHint(){
   const hints = {select:'',
+    preview:'预览模式 · 拖动画布平移 · 滚轮或双指缩放',
     measure:COARSE ? '按住拖出测量线，或依次点两点 · 靠近墙面自动吸附 · 点「选择」退出'
       : '点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消'};
   const h = $('#modehint'); h.textContent = hints[ui.tool]; h.classList.toggle('show', !!hints[ui.tool]);
@@ -796,6 +801,11 @@ svg.addEventListener('pointerdown', e => {
     else { const a = ui.mA; ui.mA = null; ui.mCur = null; if (Math.hypot(q.x-a.x, q.y-a.y) > 20) mutate(() => state.measures.push({a, b:q})); }
     renderMeasure(); return;
   }
+  if (ui.tool === 'preview') {
+    drag = {kind:'pan', sx:e.clientX, sy:e.clientY, x0:view.x0, y0:view.y0, moved:false};
+    svg.setPointerCapture(e.pointerId);
+    return;
+  }
   const h = t.closest('[data-handle]');
   if (h && ui.sel?.kind === 'furn'){
     drag = {kind:h.dataset.handle, id:ui.sel.id, sx:e.clientX, sy:e.clientY, before:snap(), moved:false};
@@ -879,6 +889,7 @@ document.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
   if (window.View3D?.walking()) return;
   const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  if (ui.tool === 'preview' && (mod || ['r','delete','backspace','arrowleft','arrowright','arrowup','arrowdown'].includes(k))) return;
   if (mod && k === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && k === 'y'){ e.preventDefault(); redo(); return; }
   if (mod && k === 'd'){ e.preventDefault(); duplicateSel(); return; }
@@ -909,7 +920,7 @@ function buildLib(){
       <svg viewBox="${-w/2-pad} ${-d/2-pad} ${w+2*pad} ${d+2*pad}">${furnSVG(t,w,d,col)}</svg><b>${esc(n)}</b><small>${w}×${d}</small></div>`;
   }).join('')}</div>`).join('') + `<div class="hint">${`家具按真实尺寸（mm）绘制。${COARSE ? '点一下放到画面中央，或按住向右拖到平面图 / 3D 地面上的指定位置（上下滑动为滚动列表）。' : '点击添加到画面中央，或直接拖到平面图 / 3D 地面上。'}添加后可在右侧修改宽深与颜色。`}</div>`;
   document.querySelectorAll('.item').forEach(el => el.addEventListener('pointerdown', e => {
-    if (e.button) return;
+    if (e.button || ui.tool === 'preview') return;
     libDrag = {el, id:e.pointerId, sx:e.clientX, sy:e.clientY, it:itemOf(el), ghost:null};
   }));
 }

@@ -776,6 +776,7 @@ function commitPlan(before, change) {
 }
 
 function selectPlan(selection) {
+  if (ui.tool === 'preview') return;
   editor.selected = selection;
   ui.sel = null;
   drawSelection();
@@ -1220,6 +1221,12 @@ function setMode(mode, type = null) {
   renderPlanPanel();
 }
 
+function setPreview() {
+  if (!editor.active) return;
+  setMode('edit');
+  editor.drag = null;
+}
+
 function activatePlan() {
   editor.active = true;
   planTools.hidden = false;
@@ -1257,6 +1264,14 @@ function onPointerDown(event) {
   if (!editor.active || event.button === 1 || event.button === 2) return;
   event.preventDefault();
   event.stopImmediatePropagation();
+  if (ui.tool === 'preview') {
+    editor.selected = null;
+    editor.drag = {kind:'pan', anchorScreen: [event.clientX, event.clientY], view: [view.x0, view.y0], moved: false};
+    drawSelection();
+    renderPlanPanel();
+    planSvg.setPointerCapture(event.pointerId);
+    return;
+  }
   const point = screenToPlan(event);
   if (editor.mode === 'room-rect') {
     const start = snapRoomPoint(point, null);
@@ -1425,6 +1440,7 @@ function onDoubleClick(event) {
 
 function onPlanKeyDown(event) {
   if (!editor.active || event.target.matches('input,select,textarea')) return;
+  if (ui.tool === 'preview') return;
   const key = event.key.toLowerCase();
   const modifier = event.ctrlKey || event.metaKey;
   const consume = () => {
@@ -1494,6 +1510,7 @@ function init() {
 export const PlanEditor = {
   init,
   isActive: () => editor.active,
+  setPreview,
   syncOverlay() {
     if (editor.active) {
       if (!snappingEnabled()) editor.guides = [];
