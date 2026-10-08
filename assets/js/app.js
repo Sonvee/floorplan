@@ -452,7 +452,7 @@ function renderAll(){
 
 function updateHeader(){
   const tot = ROOMS.filter(r => r.counted !== false).reduce((a,r) => a + area(r.poly), 0);
-  $('#subtitle').textContent = `套内使用面积约 ${fmt(tot)} m² · 尺寸单位 mm · 原图比例 1:60`;
+  $('#subtitle').textContent = `套内使用面积约 ${fmt(tot)} m² · 尺寸单位 mm`;
   $('#undo').disabled = !undoStack.length; $('#redo').disabled = !redoStack.length;
   $('#undo').style.opacity = undoStack.length ? 1 : .4; $('#redo').style.opacity = redoStack.length ? 1 : .4;
 }
