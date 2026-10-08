@@ -1062,13 +1062,38 @@ matchMedia('(max-width:1100px)').addEventListener('change', () => drawer(null));
 drawer(null);                                  // 恢复上次的面板收起状态
 $('#exportPng').onclick = exportPNG;
 $('#exportJson').onclick = () => download('户型装修方案' + '.json', new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}));
+function importPlanText(txt, successMessage = '方案已导入') {
+  try {
+    const s = JSON.parse(txt);
+    if (!Array.isArray(s.furniture)) throw 0;
+    const b = snap();
+    replaceState(s);
+    renderOpenings();
+    ui.sel = null;
+    commit(b);
+    renderAll();
+    toast(successMessage);
+  } catch (err) {
+    toast('文件格式不正确');
+  }
+}
 $('#importJson').onclick = () => $('#fileIn').click();
-$('#fileIn').onchange = e => {
+$('#importDemo').onclick = async () => {
+  try {
+    const response = await fetch('assets/example/plan-demo.json');
+    if (!response.ok) throw new Error('样例方案加载失败');
+    importPlanText(await response.text(), '样例方案已导入');
+  } catch (err) {
+    toast('样例方案加载失败');
+  }
+};
+$('#fileIn').onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
-  file.text().then(txt => {
-    try { const s = JSON.parse(txt); if (!Array.isArray(s.furniture)) throw 0; const b = snap(); replaceState(s); renderOpenings(); ui.sel = null; commit(b); renderAll(); toast('方案已导入'); }
-    catch(err){ toast('文件格式不正确'); }
-  });
+  try {
+    importPlanText(await file.text());
+  } catch (err) {
+    toast('文件读取失败');
+  }
   e.target.value = '';
 };
 // 横竖屏切换、表头换行等都会改变画布尺寸；尺寸从 0 恢复（如首次布局）时重新适应窗口
