@@ -1262,6 +1262,7 @@ function releasePointer(event) {
 
 function onPointerDown(event) {
   if (!editor.active || event.button === 1 || event.button === 2) return;
+  if (ui.tool === 'measure') return;
   event.preventDefault();
   event.stopImmediatePropagation();
   if (ui.tool === 'preview') {
@@ -1351,6 +1352,7 @@ function onPointerDown(event) {
 
 function onPointerMove(event) {
   if (!editor.active) return;
+  if (ui.tool === 'measure') return;
   event.preventDefault();
   event.stopImmediatePropagation();
   const point = screenToPlan(event);
@@ -1383,6 +1385,7 @@ function onPointerMove(event) {
 
 function onPointerUp(event) {
   if (!editor.active) return;
+  if (ui.tool === 'measure') return;
   event.preventDefault();
   event.stopImmediatePropagation();
   if (editor.mode === 'room-rect' && editor.draft.start) {
@@ -1411,6 +1414,7 @@ function onPointerUp(event) {
 
 function onPointerCancel(event) {
   if (!editor.active) return;
+  if (ui.tool === 'measure') return;
   event.preventDefault();
   event.stopImmediatePropagation();
   releasePointer(event);
@@ -1440,7 +1444,7 @@ function onDoubleClick(event) {
 
 function onPlanKeyDown(event) {
   if (!editor.active || event.target.matches('input,select,textarea')) return;
-  if (ui.tool === 'preview') return;
+  if (ui.tool === 'preview' || ui.tool === 'measure') return;
   const key = event.key.toLowerCase();
   const modifier = event.ctrlKey || event.metaKey;
   const consume = () => {

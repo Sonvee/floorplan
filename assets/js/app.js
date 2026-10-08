@@ -41,6 +41,7 @@ function deriveDimensions(plan){
 
 const STORE = 'huxing-design-v1';
 const LAYER_STORE = 'huxing-layers-v1';
+const TOOL_STORE = 'huxing-tool-v1';
 const DEFAULT_LAYERS = {dims:true, labels:true, furn:true, grid:true, bearing:true, wallSnap:true};
 
 function loadLayers(){
@@ -55,6 +56,18 @@ function loadLayers(){
 }
 function saveLayers(){
   try { localStorage.setItem(LAYER_STORE, JSON.stringify(ui.layers)); } catch(e) {}
+}
+function loadTool(){
+  try {
+    const saved = localStorage.getItem(TOOL_STORE);
+    return saved === 'preview' ? 'preview' : 'select';
+  } catch(e) {
+    return 'select';
+  }
+}
+function saveTool(tool){
+  if (tool !== 'select' && tool !== 'preview') return;
+  try { localStorage.setItem(TOOL_STORE, tool); } catch(e) {}
 }
 
 function load(){
@@ -163,7 +176,7 @@ function syncPlanRefs(){
   WALLS = state.plan.walls; WINS = state.plan.wins; DOORS = state.plan.doors; SLIDES = state.plan.slides; ROOMS = state.plan.rooms;
 }
 syncPlanRefs();
-const ui = {tool:'select', sel:null, mA:null, mCur:null, layers:loadLayers()};
+const ui = {tool:loadTool(), sel:null, mA:null, mCur:null, layers:loadLayers()};
 let view = {x0:0, y0:0, s:.06};
 const undoStack = [], redoStack = [];
 
@@ -683,6 +696,7 @@ function addItem(it, x, y){
 }
 function setTool(t){
   ui.tool = t; ui.mA = null; ui.mCur = null;
+  saveTool(t);
   if (t === 'preview') {
     select(null);
     window.PlanEditor?.setPreview?.();
@@ -694,7 +708,6 @@ function setTool(t){
 }
 function syncModeHint(){
   const hints = {select:'',
-    preview:'预览模式 · 拖动画布平移 · 滚轮或双指缩放',
     measure:COARSE ? '按住拖出测量线，或依次点两点 · 靠近墙面自动吸附 · 点「选择」退出'
       : '点击两点（或按住拖动）测量距离 · 靠近墙面自动吸附 · Shift 锁定水平/垂直 · Esc 取消'};
   const h = $('#modehint'); h.textContent = hints[ui.tool]; h.classList.toggle('show', !!hints[ui.tool]);
@@ -1122,6 +1135,7 @@ syncFullscreen();
 buildDefs(); buildLib(); renderOpenings();
 $('#tip').textContent = TIPS()['2d'];
 fitView(); renderAll();
+setTool(ui.tool);
 
 export {
   BOUNDS,
