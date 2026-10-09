@@ -645,6 +645,19 @@ function pointInRect(point, values, padding = 0) {
 function hitTest(point) {
   const doorPadding = Math.max(100, 18 / Math.max(view.s, 0.001));
   const openingPadding = Math.max(80, 14 / Math.max(view.s, 0.001));
+
+  // 先按实体真实边界命中，避免窗口的交互留白覆盖相邻墙体的可点击区域。
+  // 只有没有命中真实区域时，才使用留白容差提升小目标的可选中性。
+  for (let index = DOORS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, DOORS[index].rect)) return {kind: 'door', index};
+  }
+  for (let index = WINS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, windowFootprintRect(WINS[index]))) return {kind: 'window', index};
+  }
+  for (let index = WALLS.length - 1; index >= 0; index--) {
+    if (pointInRect(point, WALLS[index])) return {kind: 'wall', index};
+  }
+
   for (let index = DOORS.length - 1; index >= 0; index--) {
     if (pointInRect(point, DOORS[index].rect, doorPadding)) return {kind: 'door', index};
   }
