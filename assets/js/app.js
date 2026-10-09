@@ -549,6 +549,12 @@ function updateHeader(){
 }
 
 /* ======================= 右侧面板 ======================= */
+function keyboardShortcutsMarkup(){
+  return `<section><h3>键盘快捷键</h3><div class="kbd">
+    <kbd>拖拽</kbd><span>左侧家具拖入平面图</span><kbd>V</kbd><span>选择 / 移动</span><kbd>P</kbd><span>预览</span><kbd>M</kbd><span>测量（Shift 水平/垂直）</span>
+    <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
+  </div></section>`;
+}
 function renderPanel(){
   renderFab();
   const p = $('#panel');
@@ -589,10 +595,7 @@ function overviewPanel(){
     <kbd>测量</kbd><span>按住拖出一条线，或依次点两点</span>
     <kbd>3D 漫游</kbd><span>左下摇杆移动，拖动屏幕转向，点门开关</span>
   </div></section>` : ''}
-  ${`<section><h3>键盘快捷键</h3><div class="kbd">
-    <kbd>拖拽</kbd><span>左侧家具拖入平面图</span><kbd>V</kbd><span>选择 / 移动</span><kbd>M</kbd><span>测量（Shift 水平/垂直）</span>
-    <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
-  </div></section>`}`;
+  ${keyboardShortcutsMarkup()}`;
 }
 function bindOverview(){
   document.querySelectorAll('#panel tr[data-room]').forEach(tr => tr.onclick = () => { select({kind:'room', id:tr.dataset.room}); if (is3D()) window.View3D.flyToRoom(tr.dataset.room); });
@@ -997,8 +1000,9 @@ document.addEventListener('keydown', e => {
   if (k === '[' || k === ']'){ drawer(k === '[' ? 'lib' : 'panel'); return; }
   if (k === 'f' && e.shiftKey){ toggleFullscreen(); return; }
   if (k === 't') setView(is3D() ? '2d' : '3d');
-  else if (is3D() && ['v','m','x','f','+','=','-'].includes(k)) return;
+  else if (is3D() && ['v','m','p','x','f','+','=','-'].includes(k)) return;
   else if (k === 'v') setTool('select');
+  else if (k === 'p') setTool('preview');
   else if (k === 'm') setTool('measure');
   else if (k === 'f') fitView();
   else if (k === 'r') rotateSel(e.shiftKey ? -90 : 90);
@@ -1239,6 +1243,7 @@ export {
   closeDrawers,
   commit,
   drawer,
+  keyboardShortcutsMarkup,
   renderDims,
   getF,
   planWindowMarkup,

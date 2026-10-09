@@ -7,6 +7,7 @@ import {
   applyView,
   commit,
   drawer,
+  keyboardShortcutsMarkup,
   planWindowMarkup,
   renderAll,
   renderLabels,
@@ -945,7 +946,7 @@ function bindDimensions(prefix, entity, kind) {
 
 function renderPlanPanel() {
   if (!editor.active || !planPanel) return;
-  planPanel.innerHTML = planPanelMarkup();
+  planPanel.innerHTML = `${planPanelMarkup()}${keyboardShortcutsMarkup()}`;
   const selected = editor.selected;
   if (!selected) return;
   if (selected.kind === 'foundation') {
