@@ -2,7 +2,7 @@
 
 第三方库目录。
 
-当前项目已将 Three.js `0.160.0` 的核心文件和完整 `examples/jsm` addon 目录本地化：
+当前项目已将 Three.js `0.160.0` 的核心文件和项目实际使用的 `examples/jsm` addon 本地化：
 
 ```text
 assets/lib/three/

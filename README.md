@@ -42,7 +42,7 @@ python3 -m http.server 8000
 # 访问 http://localhost:8000
 ```
 
-> Three.js 核心库和 `examples/jsm` addon 已本地化到 `assets/lib/three/`，无需依赖 CDN。
+> Three.js 核心库和项目使用的 `examples/jsm` addon 已本地化到 `assets/lib/three/`，无需依赖 CDN。
 
 ## 目录结构
 
@@ -63,7 +63,7 @@ python3 -m http.server 8000
 └── LICENSE
 ```
 
-当前仍然保持“无需构建、直接部署”的使用方式。Three.js `0.160.0` 通过 `index.html` 中的 import map 从 `assets/lib/three/` 加载，完整 `examples/jsm` 目录也已随项目分发。
+当前仍然保持“无需构建、直接部署”的使用方式。Three.js `0.160.0` 通过 `index.html` 中的 import map 从 `assets/lib/three/` 加载，`examples/jsm` 目录仅保留当前 3D 场景实际使用的 addon。
 
 ## 快捷键
 
