@@ -33,7 +33,7 @@ const PANES = 'huxing-panes';
 
 const PLAN_RULES = {
   grid: 10,
-  snapTolerance: 12,
+  snapTolerance: 16,
   orthogonalAngle: 10,
   editOrthogonalAngle: 3,
   editSnapTolerance: 4,
@@ -275,20 +275,72 @@ function closestPointOnSegment(point, segment) {
  * @returns {{x: number, y: number, distance: number, axis: string, kind: string}|null}
  */
 function geometrySnap(point, tolerance, exclude = null) {
-  const geometry = planSnapSegments(exclude);
-  let closest = null;
-  geometry.points.forEach(target => {
+  const {segments, points} = planSnapSegments(exclude);
+  const candidates = [];
+  let closestPoint = null;
+  points.forEach(target => {
     const distance = Math.hypot(target.x - point.x, target.y - point.y);
-    if (distance <= tolerance && (!closest || distance < closest.distance)) {
-      closest = {x: target.x, y: target.y, distance, axis: 'point', kind: 'point'};
+    if (distance <= tolerance && (!closestPoint || distance < closestPoint.distance)) {
+      closestPoint = {x: target.x, y: target.y, distance, axis: 'point', kind: 'point'};
     }
   });
-  if (closest) return closest;
-  geometry.segments.forEach(segment => {
+
+  if (closestPoint) candidates.push(closestPoint);
+
+  let closestHorizontal = null;
+  let closestVertical = null;
+  segments.forEach(segment => {
+    const candidate = closestPointOnSegment(point, segment);
+    const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y);
+    if (distance > tolerance) return;
+    const snapped = {...candidate, distance, axis: segment.axis, kind: 'segment'};
+    if (segment.axis === 'h' && (!closestHorizontal || distance < closestHorizontal.distance)) {
+      closestHorizontal = snapped;
+    } else if (segment.axis === 'v' && (!closestVertical || distance < closestVertical.distance)) {
+      closestVertical = snapped;
+    } else if (segment.axis !== 'h' && segment.axis !== 'v') {
+      candidates.push(snapped);
+    }
+  });
+
+  if (closestHorizontal) candidates.push(closestHorizontal);
+  if (closestVertical) candidates.push(closestVertical);
+
+  // 两条互相垂直的边界都在容差内时，分别取它们的 X/Y，合成为角点。
+  // 这样即使两个边界来自不同实体、且没有共享一个显式端点，也能一次完成双向吸附。
+  if (closestHorizontal && closestVertical) {
+    candidates.push({
+      x: closestVertical.x,
+      y: closestHorizontal.y,
+      distance: Math.hypot(closestVertical.x - point.x, closestHorizontal.y - point.y),
+      axis: 'both',
+      kind: 'intersection'
+    });
+  }
+
+  return candidates.reduce((closest, candidate) => (
+    !closest || candidate.distance < closest.distance ? candidate : closest
+  ), null);
+}
+
+/**
+ * 在指定方向的边界上寻找最近吸附位置。
+ * 移动实体时 X/Y 可以分别来自不同的边界，因此不能只依赖一个整体几何候选。
+ * @param {{x: number, y: number}} point 当前锚点
+ * @param {number} tolerance 户型坐标中的吸附容差
+ * @param {'h'|'v'} axis 要匹配的边界方向
+ * @param {{kind?: string, index?: number}|null} exclude 当前编辑对象
+ * @returns {{x: number, y: number, distance: number, axis: string, kind: string}|null}
+ */
+function geometryAxisSnap(point, tolerance, axis, exclude = null) {
+  const {segments} = planSnapSegments(exclude);
+  let closest = null;
+  segments.forEach(segment => {
+    if (segment.axis !== axis) return;
     const candidate = closestPointOnSegment(point, segment);
     const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y);
     if (distance <= tolerance && (!closest || distance < closest.distance)) {
-      closest = {...candidate, distance, axis: segment.axis, kind: 'segment'};
+      closest = {...candidate, distance, axis, kind: 'segment'};
     }
   });
   return closest;
@@ -367,7 +419,7 @@ function rectSnapAnchors(rect) {
 
 /**
  * 将墙、窗或门整体移动到网格，并把其关键点吸附到其他户型实体。
- * 吸附线只修正垂直于线的位移，吸附点才会同时修正 X/Y，避免实体沿墙跳动。
+ * 水平和垂直边界分别修正对应方向，吸附点则同时修正 X/Y，避免实体沿墙跳动。
  * @param {{kind: string, index: number}} target 当前实体
  * @param {number[]} baseRect 移动前的矩形
  * @param {{x: number, y: number}} point 当前鼠标户型坐标
@@ -375,29 +427,7 @@ function rectSnapAnchors(rect) {
  * @returns {{dx: number, dy: number, guide: {x: number, y: number}|null}}
  */
 function snapEntityTranslation(target, baseRect, point, anchor) {
-  let dx = Math.round((point.x - anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
-  let dy = Math.round((point.y - anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
-  if (!snappingEnabled()) return {dx, dy, guide: null};
-
-  const movedRect = [baseRect[0] + dx, baseRect[1] + dy, baseRect[2] + dx, baseRect[3] + dy];
-  const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
-  let best = null;
-  rectSnapAnchors(movedRect).forEach(anchorPoint => {
-    const geometry = geometrySnap(anchorPoint, tolerance, target);
-    if (!geometry) return;
-    let adjustX = geometry.x - anchorPoint.x;
-    let adjustY = geometry.y - anchorPoint.y;
-    if (geometry.kind === 'segment' && geometry.axis === 'h') adjustX = 0;
-    if (geometry.kind === 'segment' && geometry.axis === 'v') adjustY = 0;
-    const score = Math.abs(adjustX) + Math.abs(adjustY);
-    if (!best || score < best.score) {
-      best = {adjustX, adjustY, score, guide: {x: geometry.x, y: geometry.y}};
-    }
-  });
-  if (!best) return {dx, dy, guide: null};
-  dx += best.adjustX;
-  dy += best.adjustY;
-  return {dx, dy, guide: best.guide};
+  return snapTranslationAxes(target, rectSnapAnchors(baseRect), point, anchor);
 }
 
 /**
@@ -409,32 +439,68 @@ function snapEntityTranslation(target, baseRect, point, anchor) {
  * @returns {{dx: number, dy: number, guide: {x: number, y: number}|null}}
  */
 function snapRoomTranslation(target, basePolygon, point, anchor) {
+  const anchors = basePolygon.map(([x, y]) => ({x, y}));
+  const center = polygonCenter(basePolygon);
+  anchors.push({x: center[0], y: center[1]});
+  return snapTranslationAxes(target, anchors, point, anchor);
+}
+
+/**
+ * 对整体移动分别计算 X/Y 吸附。
+ * 水平边界负责 Y，垂直边界负责 X；两个方向即使来自不同锚点或不同实体，也可以同时生效。
+ * @param {{kind: string, index: number}} target 当前实体
+ * @param {{x: number, y: number}[]} baseAnchors 移动前的关键点
+ * @param {{x: number, y: number}} point 当前鼠标户型坐标
+ * @param {{x: number, y: number}} anchor 开始拖拽时的鼠标户型坐标
+ * @returns {{dx: number, dy: number, guide: {x: number, y: number}|null}}
+ */
+function snapTranslationAxes(target, baseAnchors, point, anchor) {
   let dx = Math.round((point.x - anchor.x) / PLAN_RULES.grid) * PLAN_RULES.grid;
   let dy = Math.round((point.y - anchor.y) / PLAN_RULES.grid) * PLAN_RULES.grid;
   if (!snappingEnabled()) return {dx, dy, guide: null};
 
-  const movedPolygon = basePolygon.map(([x, y]) => [x + dx, y + dy]);
-  const anchors = movedPolygon.map(([x, y]) => ({x, y}));
-  const center = polygonCenter(movedPolygon);
-  anchors.push({x: center[0], y: center[1]});
+  const movedAnchors = baseAnchors.map(anchorPoint => ({x: anchorPoint.x + dx, y: anchorPoint.y + dy}));
   const tolerance = PLAN_RULES.snapTolerance / Math.max(view.s, 0.001);
-  let best = null;
-  anchors.forEach(anchorPoint => {
-    const geometry = geometrySnap(anchorPoint, tolerance, target);
-    if (!geometry) return;
-    let adjustX = geometry.x - anchorPoint.x;
-    let adjustY = geometry.y - anchorPoint.y;
-    if (geometry.kind === 'segment' && geometry.axis === 'h') adjustX = 0;
-    if (geometry.kind === 'segment' && geometry.axis === 'v') adjustY = 0;
-    const score = Math.abs(adjustX) + Math.abs(adjustY);
-    if (!best || score < best.score) {
-      best = {adjustX, adjustY, score, guide: {x: geometry.x, y: geometry.y}};
+  let bestX = null;
+  let bestY = null;
+  const considerX = (adjustment, targetX, priority = 0) => {
+    if (!bestX || priority > bestX.priority
+      || (priority === bestX.priority && Math.abs(adjustment) < Math.abs(bestX.adjustment))) {
+      bestX = {adjustment, target: targetX, priority};
     }
+  };
+  const considerY = (adjustment, targetY, priority = 0) => {
+    if (!bestY || priority > bestY.priority
+      || (priority === bestY.priority && Math.abs(adjustment) < Math.abs(bestY.adjustment))) {
+      bestY = {adjustment, target: targetY, priority};
+    }
+  };
+
+  movedAnchors.forEach(anchorPoint => {
+    const geometry = geometrySnap(anchorPoint, tolerance, target);
+    if (geometry?.kind === 'point' || geometry?.kind === 'intersection') {
+      considerX(geometry.x - anchorPoint.x, geometry.x, 1);
+      considerY(geometry.y - anchorPoint.y, geometry.y, 1);
+    }
+
+    const horizontal = geometryAxisSnap(anchorPoint, tolerance, 'h', target);
+    if (horizontal) considerY(horizontal.y - anchorPoint.y, horizontal.y);
+
+    const vertical = geometryAxisSnap(anchorPoint, tolerance, 'v', target);
+    if (vertical) considerX(vertical.x - anchorPoint.x, vertical.x);
   });
-  if (!best) return {dx, dy, guide: null};
-  dx += best.adjustX;
-  dy += best.adjustY;
-  return {dx, dy, guide: best.guide};
+
+  if (bestX) dx += bestX.adjustment;
+  if (bestY) dy += bestY.adjustment;
+  if (!bestX && !bestY) return {dx, dy, guide: null};
+  return {
+    dx,
+    dy,
+    guide: {
+      x: bestX?.target ?? point.x,
+      y: bestY?.target ?? point.y
+    }
+  };
 }
 
 function primitiveWidth(kind, type) {
