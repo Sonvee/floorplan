@@ -870,7 +870,7 @@ function bayWindowMarkup(windowEntity) {
 
 function planPanelMarkup() {
   const selected = editor.selected;
-  if (!selected) return `<section><h3>户型编辑</h3><div class="form"><label>默认宽度 (mm)<input type="number" id="planDefaultWidth" value="${defaultWidth}" min="20" step="10"></label></div><div class="muted">先绘制地基矩形，再绘制房间、墙体和门窗。点击对象可编辑属性；地基只能在属性面板调整宽高。空白区域可拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
+  if (!selected) return `<section><h3>户型编辑</h3><div class="form"><label>墙体默认宽度 (mm)<input type="number" id="planDefaultWidth" value="${defaultWidth}" min="20" step="10"></label></div><div class="muted">先绘制地基矩形，再绘制房间、墙体和门窗。点击对象可编辑属性；地基只能在属性面板调整宽高。空白区域可拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
   if (selected.kind === 'foundation') {
     const foundation = state.plan.foundation;
     if (!foundation) return '';
