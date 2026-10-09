@@ -19,7 +19,8 @@ function defaultState(){
     furniture:defaultFurniture(),
     plan:{walls:[], wins:[], doors:[], rooms:[], dimensions:[]},
     rooms:{},
-    measures:[]
+    measures:[],
+    demolished:[]
   };
 }
 
@@ -157,6 +158,7 @@ function fixState(s){
   const roomDefaults = {}; s.plan.rooms.forEach(r => roomDefaults[r.id] = {name:r.name || r.id, mat:r.mat || 'wood'});
   s.rooms = Object.assign(roomDefaults, s.rooms || {});
   s.measures = Array.isArray(s.measures) ? s.measures : [];
+  s.demolished = Array.isArray(s.demolished) ? s.demolished : [];
   return s;
 }
 
