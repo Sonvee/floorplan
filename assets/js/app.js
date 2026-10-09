@@ -466,16 +466,10 @@ function renderDims(plan = state.plan){
     const points = [dimension.start];
     dimension.segments.forEach(length => points.push(points.at(-1) + length));
     const at = dimension.offset;
-    const edge = horizontal
-      ? (at < foundation.y ? foundation.y : foundation.y + foundation.height)
-      : (at < foundation.x ? foundation.x : foundation.x + foundation.width);
     let markup = horizontal
       ? `<line x1="${points[0]}" y1="${at}" x2="${points.at(-1)}" y2="${at}" ${line}/>`
       : `<line x1="${at}" y1="${points[0]}" x2="${at}" y2="${points.at(-1)}" ${line}/>`;
     points.forEach(point => {
-      if (dimension.role === 'segmented') markup += horizontal
-        ? `<line x1="${point}" y1="${edge}" x2="${point}" y2="${at}" ${line} opacity=".35"/>`
-        : `<line x1="${edge}" y1="${point}" x2="${at}" y2="${point}" ${line} opacity=".35"/>`;
       markup += horizontal
         ? `<line x1="${point}" y1="${at - 100}" x2="${point}" y2="${at + 100}" ${line}/>`
         : `<line x1="${at - 100}" y1="${point}" x2="${at + 100}" y2="${point}" ${line}/>`;
