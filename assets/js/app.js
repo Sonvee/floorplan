@@ -17,7 +17,7 @@ function defaultFurniture(){ return []; }
 function defaultState(){
   return {
     furniture:defaultFurniture(),
-    plan:{walls:[], wins:[], doors:[], slides:[], rooms:[], dimensions:[]},
+    plan:{walls:[], wins:[], doors:[], rooms:[], dimensions:[]},
     rooms:{},
     measures:[]
   };
@@ -73,7 +73,7 @@ function saveTool(tool){
 function load(){
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
-    const hasPlan = s?.plan && ['walls','wins','doors','slides','rooms','dimensions'].some(k => Array.isArray(s.plan[k]) && s.plan[k].length);
+    const hasPlan = s?.plan && ['walls','wins','doors','rooms','dimensions'].some(k => Array.isArray(s.plan[k]) && s.plan[k].length);
     if (s && Array.isArray(s.furniture) && hasPlan) return fixState(s);
   } catch(e) {}
   return null;
@@ -149,7 +149,6 @@ function fixState(s){
     walls: Array.isArray(p.walls) ? p.walls : d.plan.walls,
     wins: Array.isArray(p.wins) ? p.wins : d.plan.wins,
     doors: Array.isArray(p.doors) ? p.doors : d.plan.doors,
-    slides: Array.isArray(p.slides) ? p.slides : d.plan.slides,
     rooms: Array.isArray(p.rooms) ? p.rooms : d.plan.rooms
   };
   s.rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
@@ -171,9 +170,9 @@ const svg = $('#plan');
 
 /* ======================= 状态 / 历史 / 存储 ======================= */
 const state = load() || defaultState();
-let WALLS = [], WINS = [], DOORS = [], SLIDES = [], ROOMS = [];
+let WALLS = [], WINS = [], DOORS = [], ROOMS = [];
 function syncPlanRefs(){
-  WALLS = state.plan.walls; WINS = state.plan.wins; DOORS = state.plan.doors; SLIDES = state.plan.slides; ROOMS = state.plan.rooms;
+  WALLS = state.plan.walls; WINS = state.plan.wins; DOORS = state.plan.doors; ROOMS = state.plan.rooms;
 }
 syncPlanRefs();
 const ui = {tool:loadTool(), sel:null, mA:null, mCur:null, layers:loadLayers()};
@@ -234,7 +233,7 @@ function renderRooms(){
   let s = '';
   ROOMS.forEach(r => s += `<polygon class="room" data-room="${r.id}" points="${r.poly.map(p=>p.join(',')).join(' ')}" fill="url(#m-${state.rooms[r.id].mat})"/>`);
   const sill = ([a,b,c,d]) => `<rect x="${a}" y="${b}" width="${c-a}" height="${d-b}" fill="#e2dacb" stroke="#b9b0a0" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
-  DOORS.forEach(d => s += sill(d.rect)); SLIDES.forEach(d => s += sill(d.rect));
+  DOORS.forEach(d => s += sill(d.rect));
   WINS.filter(win => win[4] === 'sliding').forEach(win => s += sill(win));
   $('#gRooms').innerHTML = s;
 }
@@ -321,9 +320,8 @@ const SLIDING_PANEL_THICKNESS = 40;
 const SLIDING_PANEL_GAP = 10;
 
 /**
- * 返回与 plan-demo.json 的 slides 完全一致的双扇错位布局。
- * 这里保留样例里的几何关系：每扇覆盖洞口长度 55%，两扇在中部
- * 错位并留出 10mm 的轨道间隙；2D 和 3D 都从这组数据生成，避免样式漂移。
+ * 计算滑动窗洞口中两扇错位窗扇的平面矩形。
+ * 每扇覆盖洞口长度 55%，两扇在中部错位并留出 10mm 的轨道间隙，供 2D 和 3D 共用。
  * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
  * @param {boolean} vertical 是否沿 Y 轴排列窗扇
  * @returns {Array<{x:number,y:number,width:number,height:number}>} 两扇窗扇的平面矩形
@@ -344,7 +342,7 @@ function slidingWindowPanels([x0, y0, x1, y1], vertical) {
 }
 
 /**
- * 复用样例 slides 的错位双扇图例，不使用之前的箭头或蓝色矩形样式。
+ * 生成错位双扇滑动窗图例。
  * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
  * @param {boolean} vertical 是否沿 Y 轴排列窗扇
  * @param {number} opacity 绘制预览透明度
@@ -374,7 +372,6 @@ function renderOpenings(){
     s += `<g data-door="${index}"><polygon points="${hx},${hy} ${ox},${oy} ${ox+d.c[0]*T},${oy+d.c[1]*T} ${hx+d.c[0]*T},${hy+d.c[1]*T}" fill="#fff" stroke="${col}" stroke-width="${d.entry?1.8:1}" vector-effect="non-scaling-stroke"/>`;
     s += `<path d="M${ox} ${oy}A${L} ${L} 0 0 ${sweep} ${cx} ${cy}" fill="none" ${DS} stroke-dasharray="5 3" opacity=".7"/></g>`;
   });
-  SLIDES.forEach(({rect, v}) => s += slidingWindowMarkup(rect, v));
   $('#gOpen').innerHTML = s;
 }
 
@@ -548,7 +545,7 @@ function clearLayout(){
 
 function clearCanvas(){
   const hasContent = state.furniture.length || state.plan.walls.length || state.plan.wins.length
-    || state.plan.doors.length || state.plan.slides.length || state.plan.rooms.length
+    || state.plan.doors.length || state.plan.rooms.length
     || state.plan.dimensions.length || Object.keys(state.rooms).length
     || state.measures.length;
   if (!hasContent) return toast('当前画布已经为空');
@@ -1143,7 +1140,6 @@ export {
   DOORS,
   LIB,
   ROOMS,
-  SLIDES,
   TAP,
   WALLS,
   WINS,

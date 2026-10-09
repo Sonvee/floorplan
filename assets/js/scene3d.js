@@ -15,7 +15,6 @@ import {
   COARSE,
   DOORS,
   ROOMS,
-  SLIDES,
   TAP,
   WALLS,
   WINS,
@@ -901,7 +900,7 @@ function buildStandardWindow([x0, y0, x1, y1], top, profile){
 }
 
 /**
- * 新建滑动门窗与样例 slides 共用同一组错位、重叠玻璃窗扇。
+ * 根据 wins 中的 sliding 窗户构造错位、重叠的玻璃窗扇。
  * @param {number[]} rect 洞口边界 [x0, y0, x1, y1]
  * @param {boolean} v 是否沿 Y 轴排列窗扇
  * @param {number} top 当前剖切高度（米）
@@ -917,7 +916,7 @@ function buildSlidingWindow(rect, v, top, head = v ? SLIDING_WINDOW_HEAD : 2.1){
     const x = wx(panel.x + panel.width / 2);
     const z = wz(panel.y + panel.height / 2);
     // 玻璃扇沿洞口方向铺开，另一方向只保留窗扇的薄厚度，
-    // 与样例 slides 的两扇错位关系保持一致。
+    // 与 2D 滑动窗图例保持相同的两扇错位关系。
     const pane = new THREE.Mesh(
       new THREE.BoxGeometry(v ? .02 : width, paneHeight, v ? length : .02),
       glassMat
@@ -967,21 +966,19 @@ function buildArch(){
       const pl = new THREE.PointLight(0xffd9a8, 0, 7, 1.6); pl.position.set(wx(r.at[0]), H - .25, wz(r.at[1])); lampG.add(pl);
     }
   });
-  [...DOORS, ...SLIDES, ...WINS.filter(win => win[4] === 'sliding').map(rect => ({rect}))].forEach(d => { const [x0, y0, x1, y1] = d.rect; const s = box(M(x1-x0), .012, M(y1-y0), mat('#d8d0c0', {roughness:.3}), wx((x0+x1)/2), 0, wz((y0+y1)/2)); s.castShadow = false; archFloor.add(s); });
+  [...DOORS.map(d => d.rect), ...WINS.filter(win => win[4] === 'sliding').map(win => win.slice(0, 4))].forEach(([x0, y0, x1, y1]) => { const s = box(M(x1-x0), .012, M(y1-y0), mat('#d8d0c0', {roughness:.3}), wx((x0+x1)/2), 0, wz((y0+y1)/2)); s.castShadow = false; archFloor.add(s); });
   WALLS.forEach((w, i) => {
     if (state.demolished.includes('w'+i)) return;
     wallBox(w, 0, w[4] === 'low' ? Math.min(1, top) : top);
     colliders.push([wx(w[0]), wz(w[1]), wx(w[2]), wz(w[3])]);
   });
   // 门洞、飘窗洞口上方过梁
-  [...DOORS.map(d => [d.rect, 2.1]), ...SLIDES.map(s => [s.rect, s.v ? 2.4 : 2.1])]
-    .forEach(([r, h]) => { if (top > h) wallBox(r, h, top); });
+  DOORS.forEach(d => { if (top > 2.1) wallBox(d.rect, 2.1, top); });
   WINS.forEach(r => {
     const type = r[4] || 'normal';
     if (type === 'sliding') {
       const vertical = r[5] === 'v' || (r[5] !== 'h' && r[3] - r[1] > r[2] - r[0]);
       // 新绘制的滑动门窗按落地门窗处理，水平/垂直方向统一到 2.4m。
-      // 样例中的 SLIDES 仍保留原有横向 2.1m 的门窗高度，避免改变旧方案。
       const head = SLIDING_WINDOW_HEAD;
       if (top > head) wallBox(r, head, top);
       buildSlidingWindow(r, vertical, top, head);
@@ -1005,7 +1002,6 @@ function buildArch(){
     door.cur = door.a1; pivot.rotation.y = door.cur; leaf.userData.door = knob.userData.door = door;
     doors.push(door); archUp.add(pivot);
   });
-  SLIDES.forEach(({rect, v}) => buildSlidingWindow(rect, v, top));
   applyLight(); applyGrow();
 }
 

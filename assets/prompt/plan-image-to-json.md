@@ -10,7 +10,7 @@
 
 1. 只返回一个完整、可解析的 JSON 对象，不要输出 Markdown 围栏、前言、说明、注释、置信度或 JSON 之外的文本。
 2. 顶层只允许 `plan`、`rooms`、`demolished`、`measures` 四个字段。严禁输出 `furniture`。
-3. `plan` 必须包含 `walls`、`wins`、`doors`、`slides`、`rooms`、`dimensions` 六个数组；没有对应内容时用空数组。
+3. `plan` 必须包含 `walls`、`wins`、`doors`、`rooms`、`dimensions` 五个数组；没有对应内容时用空数组。
 4. 仅使用本提示词定义的字段和结构，不添加其他字段。坐标和长度统一使用毫米。
 5. `rooms` 是房间 ID 到房间名称及地面材质的映射，必须与 `plan.rooms` 的房间 ID 一一对应。材质不能从图片确定时使用 `tile800`。
 6. `demolished` 与 `measures` 使用空数组；只有图片明确表达了拆除项或独立测量记录，且能按现有实体格式表示时才填写。
@@ -37,7 +37,6 @@
         "axis": "v"
       }
     ],
-    "slides": [],
     "rooms": [
       {
         "id": "living",
@@ -74,7 +73,7 @@
 - `walls`：墙段数组，每项为 `[x0, y0, x1, y1, wallType, axis]`。`wallType` 仅用 `n`（普通墙）、`b`（承重墙）、`e`（外墙）、`low`（矮墙）；`axis` 为 `h` 或 `v`。墙段坐标按墙体实际边界表达，并保持方向一致。
 - `wins`：窗段数组，基本项为 `[x0, y0, x1, y1, windowType, axis]`。`windowType` 仅用 `normal`、`floor`、`bay`、`sliding`；飘窗可在末尾增加图片确实能识别的凸出方向和深度信息。方向 `axis` 为 `h` 或 `v`。
 - `doors`：门对象数组。`rect` 是门洞矩形 `[x0, y0, x1, y1]`；`h` 是铰链点；`c`、`o` 是开启方向向量；`len` 是门扇长度；`swing` 仅用 `in-left`、`in-right`、`out-left`、`out-right`；`type` 使用 `hinged`；`axis` 为 `h` 或 `v`。图中为入户门时可加 `"entry": true`。各几何字段须彼此吻合门扇和开启弧线。
-- `slides`：推拉门/滑动开口数组。图片没有此类独立实体时为空数组；不得把窗重复记为滑门。
+- 滑动门窗统一记录在 `wins` 中，`windowType` 使用 `sliding`；不要创建单独的滑门数组，也不要重复表示同一个开口。
 - `plan.rooms`：房间对象数组。`poly` 是按边界顺序排列的 `[x, y]` 顶点，不重复首点；矩形用 `shape: "rectangle"`，其他轮廓用 `shape: "polygon"`。`at` 是房间标签锚点。`mat` 使用 `wood`、`antislip`、`tile600`、`tile800`、`walnut` 等值；只有图中有明确材质线索时才细分。
 - `dimensions`：尺寸链对象，`orientation` 为 `h` 或 `v`，`role` 为 `segmented` 或 `outer`，`offset` 是尺寸线相对平面的位置，`start` 是尺寸链起点，`segments` 是按顺序排列的毫米长度。按图中可读的尺寸链逐条记录，避免重复或矛盾。
 - 顶层 `rooms`：每个房间 ID 对应 `{ "name": 房间名, "mat": 材质 }`，与 `plan.rooms` 保持一致。

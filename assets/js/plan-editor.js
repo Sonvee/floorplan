@@ -2,7 +2,6 @@ import {$, area, esc, fmt, loadJson, perim, planToolSVG} from './utils.js';
 import {
   DOORS,
   ROOMS,
-  SLIDES,
   WALLS,
   WINS,
   applyView,
@@ -99,7 +98,7 @@ function normalizeRectEntity(entity, kind, type, fallbackType) {
 }
 
 function ensurePlanData() {
-  state.plan ||= {walls: [], wins: [], doors: [], slides: [], rooms: [], dimensions: []};
+  state.plan ||= {walls: [], wins: [], doors: [], rooms: [], dimensions: []};
   state.plan.walls = (state.plan.walls || []).filter(Array.isArray)
     .map(wall => normalizeRectEntity(wall, 'wall', safeWallType, 'n'));
   state.plan.wins = (state.plan.wins || []).filter(Array.isArray)
@@ -230,7 +229,6 @@ function planSnapSegments(exclude = null) {
   });
   WINS.forEach((win, index) => addRect(windowFootprintRect(win), {kind: 'window', index}));
   DOORS.forEach((door, index) => addRect(door.rect, {kind: 'door', index}));
-  SLIDES.forEach((slide, index) => addRect(slide.rect, {kind: 'slide', index}));
   ROOMS.forEach((room, roomIndex) => {
     const owner = {kind: 'room', index: roomIndex};
     if (isExcluded(owner)) return;
