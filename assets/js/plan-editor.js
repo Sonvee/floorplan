@@ -31,6 +31,7 @@ const selectionLayer = $('#gSel');
 const planPanel = $('#panel');
 const planTypes = loadJson('assets/json/plan-elements.json');
 const PANES = 'huxing-panes';
+const PLAN_SETTINGS = 'huxing-plan-settings';
 
 const PLAN_RULES = {
   grid: 10,
@@ -38,12 +39,8 @@ const PLAN_RULES = {
   orthogonalAngle: 10,
   editOrthogonalAngle: 3,
   editSnapTolerance: 4,
-  wallThickness: 240,
-  windowThickness: 240,
-  floorWindowThickness: 240,
-  bayWindowThickness: 240,
+  defaultWidth: 240,
   bayWindowDepth: 570,
-  doorThickness: 240,
   minimumPrimitiveLength: 100,
   minimumDoorLength: 500
 };
@@ -78,6 +75,20 @@ const clampPositive = (value, fallback, minimum = 1) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(minimum, parsed) : fallback;
 };
+const normalizeDefaultWidth = (value, fallback = PLAN_RULES.defaultWidth) => {
+  if (value === '' || value === null || value === undefined) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(20, Math.round(parsed / 10) * 10) : fallback;
+};
+const loadDefaultWidth = () => {
+  try { return normalizeDefaultWidth(localStorage.getItem(PLAN_SETTINGS)); } catch (e) { return PLAN_RULES.defaultWidth; }
+};
+let defaultWidth = loadDefaultWidth();
+function setDefaultWidth(value) {
+  defaultWidth = normalizeDefaultWidth(value, defaultWidth);
+  try { localStorage.setItem(PLAN_SETTINGS, String(defaultWidth)); } catch (e) {}
+  return defaultWidth;
+}
 
 function normalizeAxis(axis, rect) {
   if (axis === 'h' || axis === 'v') return axis;
@@ -504,12 +515,8 @@ function snapTranslationAxes(target, baseAnchors, point, anchor) {
   };
 }
 
-function primitiveWidth(kind, type) {
-  if (kind === 'wall') return PLAN_RULES.wallThickness;
-  if (kind === 'door') return PLAN_RULES.doorThickness;
-  if (type === 'floor') return PLAN_RULES.floorWindowThickness;
-  if (type === 'bay') return PLAN_RULES.bayWindowThickness;
-  return PLAN_RULES.windowThickness;
+function primitiveWidth() {
+  return defaultWidth;
 }
 
 function rectFromSegment(start, end, kind, type) {
@@ -862,7 +869,7 @@ function bayWindowMarkup(windowEntity) {
 
 function planPanelMarkup() {
   const selected = editor.selected;
-  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">先绘制地基矩形，再绘制房间、墙体和门窗。点击对象可编辑属性；地基只能在属性面板调整宽高。空白区域可拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
+  if (!selected) return `<section><h3>户型编辑</h3><div class="form"><label>默认宽度 (mm)<input type="number" id="planDefaultWidth" value="${defaultWidth}" min="20" step="10"></label></div><div class="muted">先绘制地基矩形，再绘制房间、墙体和门窗。点击对象可编辑属性；地基只能在属性面板调整宽高。空白区域可拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
   if (selected.kind === 'foundation') {
     const foundation = state.plan.foundation;
     if (!foundation) return '';
@@ -948,7 +955,11 @@ function renderPlanPanel() {
   if (!editor.active || !planPanel) return;
   planPanel.innerHTML = `${planPanelMarkup()}${keyboardShortcutsMarkup()}`;
   const selected = editor.selected;
-  if (!selected) return;
+  if (!selected) {
+    const input = $('#planDefaultWidth');
+    input.onchange = () => { input.value = setDefaultWidth(input.value); };
+    return;
+  }
   if (selected.kind === 'foundation') {
     const foundation = state.plan.foundation;
     if (!foundation) return;

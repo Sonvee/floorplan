@@ -440,6 +440,7 @@ tr.click:hover td {
 }
 .muted {
   color: var(--muted);
+  margin-top: 8px;
 }
 .form {
   display: grid;
