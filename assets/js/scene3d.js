@@ -845,15 +845,15 @@ function buildBayWindow(values, top, profile){
     addWindowFrame(width + .12, profile.sill, depth + .12, center, 0, sideCenter, bayBaseMat);
     addWindowPane(.018, glassHeight, depth, left, profile.sill, sideCenter);
     addWindowPane(.018, glassHeight, depth, right, profile.sill, sideCenter);
-    addWindowFrame(width + frame, frame, .06, center, profile.sill, front);
+    addWindowFrame(width + frame, frame, .06, center, profile.sill, front, sillMat);
     addWindowFrame(width + frame, frame, .06, center, gTop - frame, front);
     [left, right].forEach(x => {
       addWindowFrame(frame, glassHeight, frame, x, profile.sill, front);
-      addWindowFrame(.06, frame, depth, x, profile.sill, sideCenter);
+      addWindowFrame(.06, frame, depth, x, profile.sill, sideCenter, sillMat);
       addWindowFrame(.06, frame, depth, x, gTop - frame, sideCenter);
       addWindowFrame(frame, glassHeight, frame, x, profile.sill, back);
     });
-    addWindowFrame(width + .12, .08, depth + .12, center, Math.max(0, profile.sill - .08), sideCenter, sillMat);
+    // 不再叠加与底座顶部重合的独立窗台板，避免共面几何产生闪烁。
     return;
   }
 
@@ -863,15 +863,15 @@ function buildBayWindow(values, top, profile){
   addWindowPane(.018, glassHeight, length, front, profile.sill, centerZ);
   addWindowPane(depth, glassHeight, .018, sideCenter, profile.sill, topZ);
   addWindowPane(depth, glassHeight, .018, sideCenter, profile.sill, bottomZ);
-  addWindowFrame(.06, frame, length + frame, front, profile.sill, centerZ);
+  addWindowFrame(.06, frame, length + frame, front, profile.sill, centerZ, sillMat);
   addWindowFrame(.06, frame, length + frame, front, gTop - frame, centerZ);
   [topZ, bottomZ].forEach(z => {
-    addWindowFrame(depth, frame, .06, sideCenter, profile.sill, z);
+    addWindowFrame(depth, frame, .06, sideCenter, profile.sill, z, sillMat);
     addWindowFrame(depth, frame, .06, sideCenter, gTop - frame, z);
     addWindowFrame(.06, glassHeight, frame, front, profile.sill, z);
     addWindowFrame(.06, glassHeight, frame, back, profile.sill, z);
   });
-  addWindowFrame(depth + .12, .08, length + .12, sideCenter, Math.max(0, profile.sill - .08), centerZ, sillMat);
+  // 不再叠加与底座顶部重合的独立窗台板，避免共面几何产生闪烁。
 }
 
 /**
@@ -985,7 +985,8 @@ function buildArch(){
       return;
     }
     const profile = windowProfile(type);
-    wallBox(r, 0, Math.min(profile.sill, top));
+    // 飘窗底座由 buildBayWindow 单独建模，避免再叠加一块带深色顶面的墙体。
+    if (type !== 'bay') wallBox(r, 0, Math.min(profile.sill, top));
     if (top > profile.head) wallBox(r, profile.head, top);
     colliders.push([wx(r[0]), wz(r[1]), wx(r[2]), wz(r[3])]);
     if (type === 'bay') buildBayWindow(r, top, profile);
