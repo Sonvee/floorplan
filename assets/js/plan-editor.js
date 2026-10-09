@@ -15,6 +15,7 @@ import {
   renderWalls,
   replaceState,
   snap,
+  renderDims,
   state,
   syncPlanRefs,
   ui,
@@ -98,7 +99,9 @@ function normalizeRectEntity(entity, kind, type, fallbackType) {
 }
 
 function ensurePlanData() {
-  state.plan ||= {walls: [], wins: [], doors: [], rooms: [], dimensions: []};
+  state.plan ||= {foundation: null, walls: [], wins: [], doors: [], rooms: [], dimensions: []};
+  state.plan.foundation ??= null;
+  state.demolished = Array.isArray(state.demolished) ? state.demolished : [];
   state.plan.walls = (state.plan.walls || []).filter(Array.isArray)
     .map(wall => normalizeRectEntity(wall, 'wall', safeWallType, 'n'));
   state.plan.wins = (state.plan.wins || []).filter(Array.isArray)
@@ -224,6 +227,17 @@ function planSnapSegments(exclude = null) {
     addSegment(centerX, y0, centerX, y1, 'v', owner);
   };
 
+  const foundation = state.plan.foundation;
+  if (foundation && !isExcluded({kind: 'foundation', index: 0})) {
+    const {x, y, width, height} = foundation;
+    const corners = [[x, y], [x + width, y], [x + width, y + height], [x, y + height]];
+    const owner = {kind: 'foundation', index: 0};
+    corners.forEach(([x0, y0], index) => {
+      const [x1, y1] = corners[(index + 1) % corners.length];
+      addPoint(x0, y0, owner);
+      addSegment(x0, y0, x1, y1, index % 2 ? 'v' : 'h', owner);
+    });
+  }
   WALLS.forEach((wall, index) => {
     if (!state.demolished.includes(`w${index}`)) addRect(wall, {kind: 'wall', index});
   });
@@ -437,6 +451,19 @@ function rectFromSegment(start, end, kind, type) {
   const rect = horizontal
     ? [Math.min(start.x, end.x), start.y - width / 2, Math.max(start.x, end.x), start.y + width / 2]
     : [start.x - width / 2, Math.min(start.y, end.y), start.x + width / 2, Math.max(start.y, end.y)];
+  const foundation = state.plan.foundation;
+  // 沿地基边绘制墙体时，让墙厚朝矩形内侧展开，外边缘保持贴合地基。
+  if (kind === 'wall' && foundation) {
+    if (horizontal && Math.abs(start.y - foundation.y) < 1) {
+      rect[1] = foundation.y; rect[3] = foundation.y + width;
+    } else if (horizontal && Math.abs(start.y - foundation.y - foundation.height) < 1) {
+      rect[1] = foundation.y + foundation.height - width; rect[3] = foundation.y + foundation.height;
+    } else if (!horizontal && Math.abs(start.x - foundation.x) < 1) {
+      rect[0] = foundation.x; rect[2] = foundation.x + width;
+    } else if (!horizontal && Math.abs(start.x - foundation.x - foundation.width) < 1) {
+      rect[0] = foundation.x + foundation.width - width; rect[2] = foundation.x + foundation.width;
+    }
+  }
   return [...rect, horizontal ? 'h' : 'v'];
 }
 
@@ -561,6 +588,16 @@ function hitTest(point) {
   for (let index = WALLS.length - 1; index >= 0; index--) {
     if (pointInRect(point, WALLS[index], openingPadding)) return {kind: 'wall', index};
   }
+  const foundation = state.plan.foundation;
+  if (foundation && ui.layers.foundation) {
+    const {x, y, width, height} = foundation;
+    const padding = 8 / Math.max(view.s, 0.001);
+    if (pointInRect(point, [x, y, x + width, y + height], padding)
+      && (Math.abs(point.x - x) <= padding || Math.abs(point.x - x - width) <= padding
+        || Math.abs(point.y - y) <= padding || Math.abs(point.y - y - height) <= padding)) {
+      return {kind: 'foundation', index: 0};
+    }
+  }
   for (let index = ROOMS.length - 1; index >= 0; index--) {
     if (pointInPolygon(point, ROOMS[index].poly)) return {kind: 'room', index, id: ROOMS[index].id};
   }
@@ -627,10 +664,15 @@ function drawDoorPreview(door, opacity = 1) {
 
 function drawDraft() {
   if (!draftLayer) return;
+  renderDims();
   const draft = editor.draft;
   const line = 'stroke="#2f5d62" stroke-width="1.6" vector-effect="non-scaling-stroke"';
   let output = snapGuideMarkup();
-  if (draft.kind === 'room-rect' && draft.start && draft.current) {
+  if (draft.kind === 'foundation' && draft.start && draft.current) {
+    const [x, y, right, bottom] = normalizeRect([draft.start.x, draft.start.y, draft.current.x, draft.current.y]);
+    output += `<rect x="${x}" y="${y}" width="${right - x}" height="${bottom - y}" fill="none" stroke="#b5c2bf" stroke-width="1" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>`;
+    renderDims({...state.plan, foundation: {x, y, width: right - x, height: bottom - y}});
+  } else if (draft.kind === 'room-rect' && draft.start && draft.current) {
     const values = normalizeRect([draft.start.x, draft.start.y, draft.current.x, draft.current.y]);
     output += `<rect x="${values[0]}" y="${values[1]}" width="${values[2] - values[0]}" height="${values[3] - values[1]}" fill="rgba(47,93,98,.08)" ${line} stroke-dasharray="6 4"/>`;
     output += dimensionRectText(values, '#b5653a');
@@ -653,6 +695,9 @@ function drawDraft() {
   } else if (draft.start && draft.current) {
     const segment = rectFromSegment(draft.start, draft.current, draft.kind, draft.type);
     const values = segment.slice(0, 4);
+    if (draft.kind === 'wall') renderDims({...state.plan,
+      walls: [...state.plan.walls, [...values, safeWallType(draft.type), segment[4]]]
+    });
     if (draft.kind === 'window') output += drawWindowPreview(values, draft.type, .72);
     else if (draft.kind === 'door') output += drawDoorPreview(createDoor(draft.start, draft.current, draft.type), .85);
     else output += `<rect x="${values[0]}" y="${values[1]}" width="${values[2] - values[0]}" height="${values[3] - values[1]}" fill="rgba(181,101,58,.16)" ${line} stroke-dasharray="6 4"/>`;
@@ -670,7 +715,12 @@ function drawSelection() {
     return;
   }
   let output = '';
-  if (selected.kind === 'room') {
+  if (selected.kind === 'foundation') {
+    const foundation = state.plan.foundation;
+    if (foundation && ui.layers.foundation) {
+      output = `<rect x="${foundation.x}" y="${foundation.y}" width="${foundation.width}" height="${foundation.height}" fill="none" stroke="#8fa7a1" stroke-width="1.5" stroke-dasharray="7 5" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+    }
+  } else if (selected.kind === 'room') {
     const room = ROOMS[selected.index];
     if (room) {
       output += `<polygon points="${room.poly.map(point => point.join(',')).join(' ')}" fill="rgba(181,101,58,.08)" stroke="#b5653a" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
@@ -732,7 +782,16 @@ function bayWindowMarkup(windowEntity) {
 
 function planPanelMarkup() {
   const selected = editor.selected;
-  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">点击房间、墙体、窗户或门可以编辑属性。空白区域可以拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
+  if (!selected) return `<section><h3>户型编辑</h3><div class="muted">先绘制地基矩形，再绘制房间、墙体和门窗。点击对象可编辑属性；地基只能在属性面板调整宽高。空白区域可拖动画布。Delete 删除，方向键微调，Ctrl/Cmd+D 复制，R 旋转。</div></section>`;
+  if (selected.kind === 'foundation') {
+    const foundation = state.plan.foundation;
+    if (!foundation) return '';
+    return `<section><h3>地基属性</h3><div class="form">
+      <label>宽度 (mm)<input type="number" id="planFoundationWidth" value="${foundation.width}" min="${PLAN_RULES.minimumPrimitiveLength}" step="10"></label>
+      <label>高度 (mm)<input type="number" id="planFoundationHeight" value="${foundation.height}" min="${PLAN_RULES.minimumPrimitiveLength}" step="10"></label>
+      </div><div class="muted" style="margin-top:8px">左上角固定，调整宽高时标尺同步更新。地基边缘可吸附，绘制完成后不可拖动、旋转或复制。</div>
+      <div class="actions"><button class="btn danger" id="planDelete">删除地基</button><button class="btn" id="planBack">← 返回</button></div></section>`;
+  }
   if (selected.kind === 'room') {
     const room = ROOMS[selected.index];
     const settings = room && state.rooms[room.id];
@@ -810,7 +869,17 @@ function renderPlanPanel() {
   planPanel.innerHTML = planPanelMarkup();
   const selected = editor.selected;
   if (!selected) return;
-  if (selected.kind === 'room') {
+  if (selected.kind === 'foundation') {
+    const foundation = state.plan.foundation;
+    if (!foundation) return;
+    const width = $('#planFoundationWidth'), height = $('#planFoundationHeight');
+    const update = () => commitPlan(snap(), () => {
+      foundation.width = clampPositive(width.value, foundation.width, PLAN_RULES.minimumPrimitiveLength);
+      foundation.height = clampPositive(height.value, foundation.height, PLAN_RULES.minimumPrimitiveLength);
+    });
+    width.onchange = update;
+    height.onchange = update;
+  } else if (selected.kind === 'room') {
     const room = ROOMS[selected.index];
     if (!room) return;
     $('#planRoomName').onchange = event => commitPlan(snap(), () => {
@@ -865,7 +934,9 @@ function deleteSelected() {
   const selected = editor.selected;
   if (!selected) return;
   const before = snap();
-  if (selected.kind === 'room') {
+  if (selected.kind === 'foundation') {
+    state.plan.foundation = null;
+  } else if (selected.kind === 'room') {
     const room = state.plan.rooms[selected.index];
     state.plan.rooms.splice(selected.index, 1);
     if (room) delete state.rooms[room.id];
@@ -882,7 +953,7 @@ function deleteSelected() {
 
 function nudgeSelected(dx, dy) {
   const selected = editor.selected;
-  if (!selected) return;
+  if (!selected || selected.kind === 'foundation') return;
   const before = snap();
   if (selected.kind === 'room') {
     const room = state.plan.rooms[selected.index];
@@ -908,7 +979,7 @@ function nudgeSelected(dx, dy) {
 
 function rotateSelectedPlan(direction = 1) {
   const selected = editor.selected;
-  if (!selected) return;
+  if (!selected || selected.kind === 'foundation') return;
   const before = snap();
   const turn = direction < 0 ? -1 : 1;
 
@@ -952,7 +1023,7 @@ function rotateSelectedPlan(direction = 1) {
 
 function duplicateSelectedPlan() {
   const selected = editor.selected;
-  if (!selected) return;
+  if (!selected || selected.kind === 'foundation') return;
   const before = snap();
   const offset = 200;
   let nextSelection = null;
@@ -1004,6 +1075,25 @@ function closeDrawingMode(selection = null) {
   planSvg.setAttribute('class', 'tool-plan-edit');
   updateToolHighlight();
   drawDraft();
+}
+
+/** 将拖拽矩形提交为唯一地基，固定左上角，仅允许属性面板修改宽高。 */
+function finishFoundation() {
+  const draft = editor.draft;
+  if (!draft.start || !draft.current) return;
+  const [x, y, right, bottom] = normalizeRect([draft.start.x, draft.start.y, draft.current.x, draft.current.y]);
+  if (right - x < PLAN_RULES.minimumPrimitiveLength || bottom - y < PLAN_RULES.minimumPrimitiveLength) {
+    editor.draft = {kind: 'foundation', type: null, points: [], start: null, current: null};
+    editor.guides = [];
+    drawDraft();
+    renderDims();
+    return;
+  }
+  const before = snap();
+  state.plan.foundation = {x, y, width: right - x, height: bottom - y};
+  closeDrawingMode({kind: 'foundation', index: 0});
+  commitPlan(before, () => {});
+  drawer('panel', true);
 }
 
 function finishRoomRect() {
@@ -1187,6 +1277,7 @@ function moveSelected(point) {
       for (let index = 0; index < 4; index++) wall[index] = drag.base[index] + (index % 2 ? dy : dx);
       syncPlanRefs();
       renderWalls();
+      renderDims();
     } else if (kind === 'window') {
       moveWindowEntityDuringDrag(state.plan.wins[drag.target.index], drag.base, dx, dy);
     } else if (kind === 'door') {
@@ -1201,12 +1292,21 @@ function moveSelected(point) {
 function updateToolHighlight() {
   document.querySelectorAll('[data-plan-tool]').forEach(button => {
     const matchesMode = button.dataset.planTool === editor.mode;
-    const matchesType = editor.mode === 'room' || button.dataset.planType === editor.type;
+    const matchesType = !button.dataset.planType || button.dataset.planType === editor.type;
     button.classList.toggle('on', matchesMode && matchesType);
   });
 }
 
 function setMode(mode, type = null) {
+  if (mode === 'foundation') {
+    if (!ui.layers.foundation) $('#layers [data-layer="foundation"]').click();
+    if (state.plan.foundation) {
+      setMode('edit');
+      selectPlan({kind: 'foundation', index: 0});
+      drawer('panel', true);
+      return;
+    }
+  }
   editor.mode = mode;
   editor.type = type;
   editor.selected = null;
@@ -1217,6 +1317,7 @@ function setMode(mode, type = null) {
   drawDraft();
   drawSelection();
   renderPlanPanel();
+  renderDims();
 }
 
 function setPreview() {
@@ -1272,7 +1373,7 @@ function onPointerDown(event) {
     return;
   }
   const point = screenToPlan(event);
-  if (editor.mode === 'room-rect') {
+  if (editor.mode === 'room-rect' || editor.mode === 'foundation') {
     const start = snapRoomPoint(point, null);
     editor.draft.start = start;
     editor.draft.current = start;
@@ -1326,6 +1427,11 @@ function onPointerDown(event) {
   const target = hitTest(point);
   if (target) {
     selectPlan(target);
+    if (target.kind === 'foundation') {
+      editor.drag = null;
+      drawer('panel', true);
+      return;
+    }
     if (target.kind === 'room') {
       const room = ROOMS[target.index];
       editor.drag = {
@@ -1354,7 +1460,7 @@ function onPointerMove(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
   const point = screenToPlan(event);
-  if (editor.mode === 'room-rect' && editor.draft.start) {
+  if ((editor.mode === 'room-rect' || editor.mode === 'foundation') && editor.draft.start) {
     editor.draft.current = snapRoomPoint(point, null);
     updateSnapGuides(editor.draft.current);
     drawDraft();
@@ -1386,8 +1492,9 @@ function onPointerUp(event) {
   if (ui.tool === 'measure') return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  if (editor.mode === 'room-rect' && editor.draft.start) {
-    finishRoomRect();
+  if ((editor.mode === 'room-rect' || editor.mode === 'foundation') && editor.draft.start) {
+    if (editor.mode === 'foundation') finishFoundation();
+    else finishRoomRect();
     releasePointer(event);
     return;
   }
@@ -1419,8 +1526,9 @@ function onPointerCancel(event) {
   editor.guides = [];
   drawDraft();
   if (editor.draft.kind) {
-    editor.draft = emptyDraft();
+    editor.draft = {kind: editor.mode === 'edit' ? null : editor.mode, type: editor.type, points: [], start: null, current: null};
     drawDraft();
+    renderDims();
     return;
   }
   const drag = editor.drag;
@@ -1522,6 +1630,12 @@ export const PlanEditor = {
   },
   syncRender() {
     if (editor.active) {
+      const selected = editor.selected;
+      const exists = !selected || (selected.kind === 'foundation' ? state.plan.foundation
+        : selected.kind === 'room' ? ROOMS[selected.index]
+          : selected.kind === 'wall' ? WALLS[selected.index]
+            : selected.kind === 'window' ? WINS[selected.index] : DOORS[selected.index]);
+      if (!exists) editor.selected = null;
       drawDraft();
       drawSelection();
       renderPlanPanel();

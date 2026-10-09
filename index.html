@@ -67,7 +67,8 @@
       <button class="btn danger" id="clearCanvas" title="清空整个画布（可撤销）">清空画布</button>
     </div>
     <div class="grp only2d" id="layers">
-      <button class="btn chip on" data-layer="dims">尺寸</button>
+      <button class="btn chip on" data-layer="dims">标尺</button>
+      <button class="btn chip on" data-layer="foundation">地基</button>
       <button class="btn chip on" data-layer="labels">房间</button>
       <button class="btn chip on" data-layer="furn">家具</button>
       <button class="btn chip on" data-layer="grid">网格</button>
@@ -98,6 +99,10 @@
 
   <aside class="lib">
     <div id="planTools" class="plan-tools" hidden>
+      <h4>绘制地基</h4>
+      <div class="plan-grid">
+        <button class="plan-item" data-plan-tool="foundation"><b aria-hidden="true"></b><span>地基矩形</span><small>地基矩形和标尺</small></button>
+      </div>
       <h4>绘制房间</h4>
       <div class="plan-grid">
         <button class="plan-item" data-plan-tool="room-rect"><b aria-hidden="true"></b><span>房间矩形</span><small>拖拽绘制矩形</small></button>
@@ -137,6 +142,7 @@
     <svg id="plan" class="tool-select" font-family="-apple-system,'PingFang SC','Microsoft YaHei',sans-serif">
       <defs id="defs"></defs>
       <g id="gGrid"></g>
+      <g id="gFoundation" pointer-events="none"></g>
       <g id="gRooms"></g>
       <g id="gFurn"></g>
       <g id="gWalls"></g>

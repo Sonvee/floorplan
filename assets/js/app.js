@@ -17,33 +17,88 @@ function defaultFurniture(){ return []; }
 function defaultState(){
   return {
     furniture:defaultFurniture(),
-    plan:{walls:[], wins:[], doors:[], rooms:[], dimensions:[]},
+    plan:{foundation:null, walls:[], wins:[], doors:[], rooms:[], dimensions:[]},
     rooms:{},
     measures:[],
     demolished:[]
   };
 }
 
-function deriveDimensions(plan){
-  const points = [];
-  (plan.walls || []).forEach(([x0,y0,x1,y1]) => points.push([x0,y0],[x1,y1]));
-  (plan.rooms || []).forEach(r => (r.poly || []).forEach(point => points.push(point)));
-  if (!points.length) return [];
-  const xs = points.map(([x]) => x), ys = points.map(([,y]) => y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-  const padX = Math.max(500, (maxX - minX) * .08), padY = Math.max(500, (maxY - minY) * .08);
-  return [
-    {orientation:'h', offset:minY - padY, start:minX, segments:[maxX - minX]},
-    {orientation:'h', offset:maxY + padY, start:minX, segments:[maxX - minX]},
-    {orientation:'v', offset:minX - padX, start:minY, segments:[maxY - minY]},
-    {orientation:'v', offset:maxX + padX, start:minY, segments:[maxY - minY]}
-  ];
+/**
+ * 规范化地基；显式 null 表示尚未绘制或已删除。
+ * @param {{x:number, y:number, width:number, height:number}|null} foundation 地基数据
+ * @returns {{x:number, y:number, width:number, height:number}|null} 有效矩形
+ */
+function normalizeFoundation(foundation){
+  if (!foundation || !['x', 'y', 'width', 'height'].every(key => Number.isFinite(foundation[key]))) return null;
+  if (foundation.width <= 0 || foundation.height <= 0) return null;
+  return {x:foundation.x, y:foundation.y, width:foundation.width, height:foundation.height};
+}
+
+/**
+ * 仅在导入缺少 foundation 字段的旧方案时，用建筑外包矩形建立地基。
+ * @param {{walls:Array, rooms:Array}} plan 旧方案
+ * @returns {{x:number, y:number, width:number, height:number}|null} 兼容地基
+ */
+function migrateFoundation(plan){
+  const points = plan.walls.flatMap(wall => Array.isArray(wall) ? [[wall[0], wall[1]], [wall[2], wall[3]]] : [])
+    .concat(plan.rooms.flatMap(room => Array.isArray(room?.poly) ? room.poly : []))
+    .filter(point => Array.isArray(point) && point.length >= 2 && point.slice(0, 2).every(Number.isFinite));
+  if (!points.length) return null;
+  const xs = points.map(point => point[0]), ys = points.map(point => point[1]);
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return normalizeFoundation({x, y, width:Math.max(...xs) - x, height:Math.max(...ys) - y});
+}
+
+/**
+ * 地基四边提供总尺寸，地基内的竖墙/横墙两侧边界提供水平/垂直分段。
+ * 分段坐标裁剪到地基范围，拆除墙不参与；没有地基时没有标尺。
+ * @param {{foundation:object|null, walls:Array}} plan 户型
+ * @param {string[]} [demolished] 已拆除墙索引
+ * @returns {Array<{orientation:string, role:string, offset:number, start:number, segments:number[]}>} 四侧标尺
+ */
+function foundationDimensions(plan, demolished = []){
+  const foundation = normalizeFoundation(plan.foundation);
+  if (!foundation) return [];
+  const {x, y, width, height} = foundation;
+  const right = x + width, bottom = y + height;
+  const horizontal = [x, right], vertical = [y, bottom];
+  (plan.walls || []).forEach((wall, index) => {
+    if (!Array.isArray(wall) || wall.length < 4 || !wall.slice(0, 4).every(Number.isFinite)
+      || demolished.includes(`w${index}`)) return;
+    const x0 = Math.min(wall[0], wall[2]), x1 = Math.max(wall[0], wall[2]);
+    const y0 = Math.min(wall[1], wall[3]), y1 = Math.max(wall[1], wall[3]);
+    if (x1 <= x || x0 >= right || y1 <= y || y0 >= bottom) return;
+    const axis = wall[5] || (x1 - x0 >= y1 - y0 ? 'h' : 'v');
+    if (axis === 'v') horizontal.push(Math.max(x, x0), Math.min(right, x1));
+    else vertical.push(Math.max(y, y0), Math.min(bottom, y1));
+  });
+  const segmentsOf = points => {
+    const sorted = [...new Set(points)].sort((a, b) => a - b);
+    return sorted.slice(1).map((value, index) => value - sorted[index]);
+  };
+  const rows = [];
+  const addSide = (orientation, coordinate, sign, start, length, segments) => rows.push(
+    {orientation, role:'segmented', offset:coordinate + sign * 500, start, segments:[...segments]},
+    {orientation, role:'outer', offset:coordinate + sign * 1000, start, segments:[length]}
+  );
+  const h = segmentsOf(horizontal), v = segmentsOf(vertical);
+  addSide('h', y, -1, x, width, h);
+  addSide('h', bottom, 1, x, width, h);
+  addSide('v', x, -1, y, height, v);
+  addSide('v', right, 1, y, height, v);
+  return rows;
+}
+
+/** 更新 JSON 中的地基标尺，供编辑、保存和导出共用。 */
+function syncFoundationDimensions(){
+  state.plan.dimensions = foundationDimensions(state.plan, state.demolished);
 }
 
 const STORE = 'huxing-design-v1';
 const LAYER_STORE = 'huxing-layers-v1';
 const TOOL_STORE = 'huxing-tool-v1';
-const DEFAULT_LAYERS = {dims:true, labels:true, furn:true, grid:true, bearing:true, wallSnap:true};
+const DEFAULT_LAYERS = {dims:true, foundation:true, labels:true, furn:true, grid:true, bearing:true, wallSnap:true};
 
 function loadLayers(){
   const layers = {...DEFAULT_LAYERS};
@@ -74,7 +129,8 @@ function saveTool(tool){
 function load(){
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
-    const hasPlan = s?.plan && ['walls','wins','doors','rooms','dimensions'].some(k => Array.isArray(s.plan[k]) && s.plan[k].length);
+    const hasPlan = s?.plan && (normalizeFoundation(s.plan.foundation)
+      || ['walls','wins','doors','rooms'].some(k => Array.isArray(s.plan[k]) && s.plan[k].length));
     if (s && Array.isArray(s.furniture) && hasPlan) return fixState(s);
   } catch(e) {}
   return null;
@@ -146,6 +202,7 @@ function migrateLegacyBayRooms(plan, roomSettings){
 
 function fixState(s){
   const d = defaultState(), p = s.plan || {};
+  s.furniture = Array.isArray(s.furniture) ? s.furniture : [];
   const plan = {
     walls: Array.isArray(p.walls) ? p.walls : d.plan.walls,
     wins: Array.isArray(p.wins) ? p.wins : d.plan.wins,
@@ -154,11 +211,12 @@ function fixState(s){
   };
   s.rooms = s.rooms && typeof s.rooms === 'object' ? s.rooms : {};
   migrateLegacyBayRooms(plan, s.rooms);
-  s.plan = {...plan, dimensions:Array.isArray(p.dimensions) ? p.dimensions : deriveDimensions(plan)};
+  plan.foundation = Object.hasOwn(p, 'foundation') ? normalizeFoundation(p.foundation) : migrateFoundation(plan);
+  s.demolished = Array.isArray(s.demolished) ? s.demolished : [];
+  s.plan = {...plan, dimensions:foundationDimensions(plan, s.demolished)};
   const roomDefaults = {}; s.plan.rooms.forEach(r => roomDefaults[r.id] = {name:r.name || r.id, mat:r.mat || 'wood'});
   s.rooms = Object.assign(roomDefaults, s.rooms || {});
   s.measures = Array.isArray(s.measures) ? s.measures : [];
-  s.demolished = Array.isArray(s.demolished) ? s.demolished : [];
   return s;
 }
 
@@ -181,7 +239,7 @@ const ui = {tool:loadTool(), sel:null, mA:null, mCur:null, layers:loadLayers()};
 let view = {x0:0, y0:0, s:.06};
 const undoStack = [], redoStack = [];
 
-function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e) {} }
+function save(){ syncFoundationDimensions(); try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e) {} }
 const snap = () => JSON.stringify(state);
 function replaceState(next){
   const normalized = fixState(next);
@@ -387,25 +445,51 @@ function renderLabels(){
   }).join('');
 }
 
-function renderDims(){
-  const DC = '#7d7160', LS = `stroke="${DC}" stroke-width="1" vector-effect="non-scaling-stroke"`, TK = `stroke="${DC}" stroke-width="2" vector-effect="non-scaling-stroke"`;
-  const txt = (x,y,v,rot) => `<text x="${x}" y="${y}" font-size="${v<400?140:200}" text-anchor="middle" fill="${DC}" ${rot?`transform="rotate(-90 ${x} ${y})"`:''}>${Math.round(v)}</text>`;
-  const chain = (horiz, at, start, segs) => {
-    const pts = [start]; segs.forEach(v => pts.push(pts[pts.length-1] + v));
-    let s = horiz ? `<line x1="${pts[0]}" y1="${at}" x2="${pts.at(-1)}" y2="${at}" ${LS}/>` : `<line x1="${at}" y1="${pts[0]}" x2="${at}" y2="${pts.at(-1)}" ${LS}/>`;
-    pts.forEach(p => s += horiz
-      ? `<line x1="${p}" y1="${at-170}" x2="${p}" y2="${at+170}" ${LS}/><line x1="${p-80}" y1="${at+80}" x2="${p+80}" y2="${at-80}" ${TK}/>`
-      : `<line x1="${at-170}" y1="${p}" x2="${at+170}" y2="${p}" ${LS}/><line x1="${at-80}" y1="${p+80}" x2="${at+80}" y2="${p-80}" ${TK}/>`);
-    segs.forEach((v,i) => { const mid = (pts[i] + pts[i+1]) / 2; s += horiz ? txt(mid, at-70, v) : txt(at-70, mid, v, true); });
-    return s;
-  };
-  const g = $('#gDims'), dims = state.plan.dimensions || [];
-  g.innerHTML = dims.map(d => {
-    const segs = Array.isArray(d.segments) ? d.segments.filter(Number.isFinite) : [];
-    if (!segs.length || !Number.isFinite(d.offset) || !Number.isFinite(d.start)) return '';
-    return chain(d.orientation !== 'v', d.offset, d.start, segs);
+/** 绘制浅色虚线地基；显示开关不改变地基数据和吸附边界。 */
+function renderFoundation(){
+  const g = $('#gFoundation'), foundation = state.plan.foundation;
+  g.innerHTML = foundation ? `<rect x="${foundation.x}" y="${foundation.y}" width="${foundation.width}" height="${foundation.height}" fill="none" stroke="#b5c2bf" stroke-width="1" stroke-dasharray="7 5" vector-effect="non-scaling-stroke"/>` : '';
+  g.setAttribute('display', ui.layers.foundation && foundation ? 'inline' : 'none');
+}
+
+/**
+ * 绘制地基外围标尺，拖拽地基期间可预览尚未提交的矩形。
+ * @param {{foundation:object|null, walls:Array}} [plan] 预览户型，默认使用当前方案
+ */
+function renderDims(plan = state.plan){
+  if (plan === state.plan) syncFoundationDimensions();
+  const dimensions = plan === state.plan ? plan.dimensions : foundationDimensions(plan, state.demolished);
+  const foundation = plan.foundation, g = $('#gDims');
+  const line = 'stroke="#7d7160" stroke-width="1" vector-effect="non-scaling-stroke"';
+  g.innerHTML = dimensions.map(dimension => {
+    const horizontal = dimension.orientation === 'h';
+    const points = [dimension.start];
+    dimension.segments.forEach(length => points.push(points.at(-1) + length));
+    const at = dimension.offset;
+    const edge = horizontal
+      ? (at < foundation.y ? foundation.y : foundation.y + foundation.height)
+      : (at < foundation.x ? foundation.x : foundation.x + foundation.width);
+    let markup = horizontal
+      ? `<line x1="${points[0]}" y1="${at}" x2="${points.at(-1)}" y2="${at}" ${line}/>`
+      : `<line x1="${at}" y1="${points[0]}" x2="${at}" y2="${points.at(-1)}" ${line}/>`;
+    points.forEach(point => {
+      if (dimension.role === 'segmented') markup += horizontal
+        ? `<line x1="${point}" y1="${edge}" x2="${point}" y2="${at}" ${line} opacity=".35"/>`
+        : `<line x1="${edge}" y1="${point}" x2="${at}" y2="${point}" ${line} opacity=".35"/>`;
+      markup += horizontal
+        ? `<line x1="${point}" y1="${at - 100}" x2="${point}" y2="${at + 100}" ${line}/>`
+        : `<line x1="${at - 100}" y1="${point}" x2="${at + 100}" y2="${point}" ${line}/>`;
+    });
+    dimension.segments.forEach((length, index) => {
+      const midpoint = (points[index] + points[index + 1]) / 2;
+      const x = horizontal ? midpoint : at - 70, y = horizontal ? at - 70 : midpoint;
+      // 墙厚等短分段沿标尺旋转文字，减少相邻数值互相覆盖。
+      const rotate = !horizontal || length < 400;
+      markup += `<text x="${x}" y="${y}" font-size="${length < 400 ? 120 : 180}" text-anchor="middle" fill="#7d7160"${rotate ? ` transform="rotate(-90 ${x} ${y})"` : ''}>${Math.round(length)}</text>`;
+    });
+    return markup;
   }).join('');
-  g.setAttribute('display', ui.layers.dims && g.innerHTML ? 'inline' : 'none');
+  g.setAttribute('display', ui.layers.dims && dimensions.length ? 'inline' : 'none');
 }
 
 function renderGrid(){
@@ -457,7 +541,7 @@ function renderSel(){
 }
 
 function renderAll(){
-  renderGrid(); renderRooms(); renderFurn(); renderWalls(); renderOpenings(); renderDims(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
+  renderGrid(); renderFoundation(); renderRooms(); renderFurn(); renderWalls(); renderOpenings(); renderDims(); renderLabels(); renderMeasure(); renderSel(); renderPanel(); updateHeader();
   window.PlanEditor?.syncRender?.();
   window.View3D?.sync();
 }
@@ -548,10 +632,10 @@ function clearLayout(){
 function clearCanvas(){
   const hasContent = state.furniture.length || state.plan.walls.length || state.plan.wins.length
     || state.plan.doors.length || state.plan.rooms.length
-    || state.plan.dimensions.length || Object.keys(state.rooms).length
+    || state.plan.foundation || state.plan.dimensions.length || Object.keys(state.rooms).length
     || state.measures.length;
   if (!hasContent) return toast('当前画布已经为空');
-  if (!confirm('确定清空整个画布吗？\n家具、墙体、门窗、房间、地面材料和测量线都会删除，可点「撤销」恢复。')) return;
+  if (!confirm('确定清空整个画布吗？\n家具、地基、标尺、墙体、门窗、房间、地面材料和测量线都会删除，可点「撤销」恢复。')) return;
   ui.sel = null;
   ui.mA = null;
   ui.mCur = null;
@@ -723,10 +807,19 @@ function applyView(){
   $('#sbText').textContent = nice >= 1000 ? `${nice/1000} m` : `${nice} mm`;
   renderSel(); renderMeasure(); window.PlanEditor?.syncOverlay?.();
 }
+/** 适应窗口和图片导出使用地基范围，预留四侧标尺的空间。 */
+function planViewBounds(){
+  const foundation = state.plan.foundation;
+  if (!foundation) return BOUNDS;
+  const margin = 1400;
+  return {x:foundation.x - margin, y:foundation.y - margin,
+    w:foundation.width + margin * 2, h:foundation.height + margin * 2};
+}
+
 function fitView(){
-  const W = svg.clientWidth, H = svg.clientHeight;
-  view.s = Math.min(W/BOUNDS.w, H/BOUNDS.h);
-  view.x0 = BOUNDS.x - (W/view.s - BOUNDS.w)/2; view.y0 = BOUNDS.y - (H/view.s - BOUNDS.h)/2;
+  const W = svg.clientWidth, H = svg.clientHeight, bounds = planViewBounds();
+  view.s = Math.min(W/bounds.w, H/bounds.h);
+  view.x0 = bounds.x - (W/view.s - bounds.w)/2; view.y0 = bounds.y - (H/view.s - bounds.h)/2;
   applyView();
 }
 function zoomAt(ns, mx, my){
@@ -992,8 +1085,9 @@ addEventListener('pointercancel', e => endLibDrag(e, false));
 function download(name, blob){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
 function exportPNG(){
   if (is3D()) return window.View3D.shot();
-  const clone = svg.cloneNode(true), W = 3200, H = Math.round(W*BOUNDS.h/BOUNDS.w);
-  clone.setAttribute('viewBox', `${BOUNDS.x} ${BOUNDS.y} ${BOUNDS.w} ${BOUNDS.h}`);
+  const bounds = planViewBounds();
+  const clone = svg.cloneNode(true), W = 3200, H = Math.round(W*bounds.h/bounds.w);
+  clone.setAttribute('viewBox', `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`);
   clone.setAttribute('width', W); clone.setAttribute('height', H);
   clone.querySelector('#gSel').innerHTML = '';
   clone.querySelector('#gGrid').innerHTML = `<rect x="-20000" y="-20000" width="55000" height="55000" fill="${ui.layers.grid?'url(#grid)':'#f7f4ee'}"/>`;
@@ -1088,7 +1182,8 @@ $('#exportJson').onclick = () => download('户型装修方案' + '.json', new Bl
 function importPlanText(txt, successMessage = '方案已导入') {
   try {
     const s = JSON.parse(txt);
-    if (!Array.isArray(s.furniture)) throw 0;
+    if (!s || typeof s !== 'object' || (s.furniture !== undefined && !Array.isArray(s.furniture))
+      || (!Array.isArray(s.furniture) && (!s.plan || typeof s.plan !== 'object'))) throw 0;
     const b = snap();
     replaceState(s);
     renderOpenings();
@@ -1149,6 +1244,7 @@ export {
   closeDrawers,
   commit,
   drawer,
+  renderDims,
   getF,
   planWindowMarkup,
   renderAll,

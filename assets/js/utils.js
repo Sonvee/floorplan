@@ -38,13 +38,20 @@ export const DASH = 'stroke-dasharray="4 3"';
 /**
  * 绘制户型工具的 SVG 图例，复用家具图例的矩形、线段与路径工具。
  * 仅用于工具栏缩略图，不参与画布实体的几何计算和交互。
- * @param {string} tool 工具类别：room-rect、room、wall、window、door
+ * @param {string} tool 工具类别：foundation、room-rect、room、wall、window、door
  * @param {string} [type] 墙体、窗户或门的具体类型
  * @returns {string} 使用统一 viewBox 的 SVG 图标；未知工具返回空字符串
  */
 export function planToolSVG(tool, type) {
   let content = '';
   switch (tool) {
+    case 'foundation': {
+      content = rc(13, 11, 38, 26, 'none', DASH);
+      content += ln(13, 5, 51, 5) + ln(7, 11, 7, 37);
+      content += ln(13, 2, 13, 8) + ln(51, 2, 51, 8);
+      content += ln(4, 11, 10, 11) + ln(4, 37, 10, 37);
+      break;
+    }
     case 'room-rect':
     case 'room': {
       const points = tool === 'room-rect'

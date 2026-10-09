@@ -293,6 +293,8 @@ main {
 #plan.tool-measure {
   cursor: crosshair;
 }
+#plan.tool-plan-foundation,
+#plan.tool-plan-room-rect,
 #plan.tool-plan-room,
 #plan.tool-plan-wall,
 #plan.tool-plan-window,

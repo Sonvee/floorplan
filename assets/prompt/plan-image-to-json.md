@@ -4,13 +4,13 @@
 
 ## 任务边界
 
-只生成房间轮廓与名称、墙体、门、窗、滑门窗和图上尺寸标注。忽略且不得输出家具、家电、洁具、橱柜、桌椅、床、沙发、收纳物、植物、地毯、装饰、人物、地面铺装图案及其他室内陈设。家具遮挡处应根据连续墙线、墙厚、开口符号和尺寸链谨慎还原；不得把家具边缘误识别为墙。
+只生成地基矩形、房间轮廓与名称、墙体、门、窗、滑门窗和地基外围标尺。忽略且不得输出家具、家电、洁具、橱柜、桌椅、床、沙发、收纳物、植物、地毯、装饰、人物、地面铺装图案及其他室内陈设。家具遮挡处应根据连续墙线、墙厚、开口符号和尺寸链谨慎还原；不得把家具边缘误识别为墙。
 
 ## 输出要求
 
 1. 只返回一个完整、可解析的 JSON 对象，不要输出 Markdown 围栏、前言、说明、注释、置信度或 JSON 之外的文本。
 2. 顶层只允许 `plan`、`rooms`、`demolished`、`measures` 四个字段。严禁输出 `furniture`。
-3. `plan` 必须包含 `walls`、`wins`、`doors`、`rooms`、`dimensions` 五个数组；没有对应内容时用空数组。
+3. `plan` 必须包含独立的 `foundation` 矩形对象，以及 `walls`、`wins`、`doors`、`rooms`、`dimensions` 五个数组。无法可靠识别建筑范围时 `foundation` 为 `null` 且 `dimensions` 为空数组；其他无内容的数组也使用空数组。
 4. 仅使用本提示词定义的字段和结构，不添加其他字段。坐标和长度统一使用毫米。
 5. `rooms` 是房间 ID 到房间名称及地面材质的映射，必须与 `plan.rooms` 的房间 ID 一一对应。材质不能从图片确定时使用 `tile800`。
 6. `demolished` 与 `measures` 使用空数组；只有图片明确表达了拆除项或独立测量记录，且能按现有实体格式表示时才填写。
@@ -22,6 +22,7 @@
 ```json
 {
   "plan": {
+    "foundation": { "x": 0, "y": 0, "width": 3000, "height": 3500 },
     "walls": [[0, 0, 3000, 240, "e", "h"]],
     "wins": [[600, 0, 1800, 240, "normal", "h"]],
     "doors": [
@@ -48,13 +49,14 @@
       }
     ],
     "dimensions": [
-      {
-        "orientation": "h",
-        "role": "outer",
-        "offset": -500,
-        "start": 0,
-        "segments": [3000]
-      }
+      { "orientation": "h", "role": "segmented", "offset": -500, "start": 0, "segments": [3000] },
+      { "orientation": "h", "role": "outer", "offset": -1000, "start": 0, "segments": [3000] },
+      { "orientation": "h", "role": "segmented", "offset": 4000, "start": 0, "segments": [3000] },
+      { "orientation": "h", "role": "outer", "offset": 4500, "start": 0, "segments": [3000] },
+      { "orientation": "v", "role": "segmented", "offset": -500, "start": 0, "segments": [240, 3260] },
+      { "orientation": "v", "role": "outer", "offset": -1000, "start": 0, "segments": [3500] },
+      { "orientation": "v", "role": "segmented", "offset": 3500, "start": 0, "segments": [240, 3260] },
+      { "orientation": "v", "role": "outer", "offset": 4000, "start": 0, "segments": [3500] }
     ]
   },
   "rooms": {
@@ -70,12 +72,16 @@
 
 ### 字段含义
 
+- `foundation`：唯一的地基矩形 `{ "x": 左上角X, "y": 左上角Y, "width": 总宽, "height": 总高 }`，四个值均为毫米数值，宽高必须大于零。矩形包围建筑墙体和房间的完整范围；不规则户型取完整外包矩形，不把标尺、家具或飘窗外凸窗扇计入地基。不允许用房间替代地基。原点固定，编辑宽高不改变 `x`、`y`。
 - `walls`：墙段数组，每项为 `[x0, y0, x1, y1, wallType, axis]`。`wallType` 仅用 `n`（普通墙）、`b`（承重墙）、`e`（外墙）、`low`（矮墙）；`axis` 为 `h` 或 `v`。墙段坐标按墙体实际边界表达，并保持方向一致。
 - `wins`：窗段数组，基本项为 `[x0, y0, x1, y1, windowType, axis]`。`windowType` 仅用 `normal`、`floor`、`bay`、`sliding`；飘窗可在末尾增加图片确实能识别的凸出方向和深度信息。方向 `axis` 为 `h` 或 `v`。
 - `doors`：门对象数组。`rect` 是门洞矩形 `[x0, y0, x1, y1]`；`h` 是铰链点；`c`、`o` 是开启方向向量；`len` 是门扇长度；`swing` 仅用 `in-left`、`in-right`、`out-left`、`out-right`；`type` 使用 `hinged`；`axis` 为 `h` 或 `v`。图中为入户门时可加 `"entry": true`。各几何字段须彼此吻合门扇和开启弧线。
 - 滑动门窗统一记录在 `wins` 中，`windowType` 使用 `sliding`；不要创建单独的滑门数组，也不要重复表示同一个开口。
 - `plan.rooms`：房间对象数组。`poly` 是按边界顺序排列的 `[x, y]` 顶点，不重复首点；矩形用 `shape: "rectangle"`，其他轮廓用 `shape: "polygon"`。`at` 是房间标签锚点。`mat` 使用 `wood`、`antislip`、`tile600`、`tile800`、`walnut` 等值；只有图中有明确材质线索时才细分。
-- `dimensions`：尺寸链对象，`orientation` 为 `h` 或 `v`，`role` 为 `segmented` 或 `outer`，`offset` 是尺寸线相对平面的位置，`start` 是尺寸链起点，`segments` 是按顺序排列的毫米长度。按图中可读的尺寸链逐条记录，避免重复或矛盾。
+- `dimensions`：由地基和墙体生成的外围尺寸链，`orientation` 为 `h` 或 `v`，`role` 为 `segmented` 或 `outer`，`offset` 是尺寸线的绝对 Y（水平链）或 X（垂直链）坐标，`start` 是起点 X 或 Y，`segments` 是按顺序排列的正数毫米长度。图片尺寸用于校准几何，输出标尺统一按以下规则计算，不照搬图片中局部标尺的位置。
+  - 上下水平链：以地基左、右边界及所有与地基有正面积交集的竖墙的左右边界为分段点；墙坐标裁剪到地基范围、排序并去重，相邻坐标差组成分段。左右垂直链同理，使用地基上、下边界及横墙的上下边界。
+  - 上、下各生成两条水平链，`start = foundation.x`；左、右各生成两条垂直链，`start = foundation.y`。分段链在对应地基边界外偏移 500 mm，总尺寸链在边界外偏移 1000 mm。总尺寸链只有一个分段，分别为地基宽或高，共八条链。
+  - 相对两侧的分段链相同；不计门窗、房间、拆除墙或完全位于地基外的墙，不按墙体最外侧位置推导标尺。各链分段之和严格等于对应地基宽高。无内部分段点时分段链只有一个分段。
 - 顶层 `rooms`：每个房间 ID 对应 `{ "name": 房间名, "mat": 材质 }`，与 `plan.rooms` 保持一致。
 
 ## 几何与识别规则
@@ -89,7 +95,7 @@
 ## 输出前内部自检
 
 - JSON 语法正确；顶层恰有四个规定字段，且没有 `furniture`。
-- `plan` 六个数组均存在；数组项字段、值类型和枚举符合上述结构。
+- `plan.foundation` 和五个规定数组均存在；地基宽高为正数，数组项字段、值类型和枚举符合上述结构。
 - 所有尺寸为毫米，坐标系一致，尺寸链闭合；房间 ID、名称与材质映射一致。
 - 没有将家具、洁具、家电、装饰或地面纹理编码为墙体、房间或其他户型实体。
 - 自检过程不输出，只返回最终 JSON。
