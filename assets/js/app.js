@@ -1213,6 +1213,15 @@ $('#importDemo').onclick = async () => {
     toast('样例方案加载失败');
   }
 };
+$('#downloadPrompt').onclick = async () => {
+  try {
+    const response = await fetch('assets/prompt/plan-image-to-json.md');
+    if (!response.ok) throw new Error('提示词下载失败');
+    download('plan-image-to-json.md', await response.blob());
+  } catch (err) {
+    toast('AI户型提示词下载失败');
+  }
+};
 $('#fileIn').onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
   try {
