@@ -11,6 +11,7 @@ import {
   planWindowMarkup,
   renderAll,
   renderLabels,
+  roomAreaMarkup,
   renderOpenings,
   renderRooms,
   renderWalls,
@@ -953,7 +954,7 @@ function bindDimensions(prefix, entity, kind) {
 
 function renderPlanPanel() {
   if (!editor.active || !planPanel) return;
-  planPanel.innerHTML = `${planPanelMarkup()}${keyboardShortcutsMarkup()}`;
+  planPanel.innerHTML = `${planPanelMarkup()}${roomAreaMarkup()}${keyboardShortcutsMarkup()}`;
   const selected = editor.selected;
   if (!selected) {
     const input = $('#planDefaultWidth');

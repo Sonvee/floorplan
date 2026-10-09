@@ -552,7 +552,7 @@ function updateHeader(){
 function keyboardShortcutsMarkup(){
   return `<section><h3>键盘快捷键</h3><div class="kbd">
     <kbd>拖拽</kbd><span>左侧家具拖入平面图</span><kbd>V</kbd><span>选择 / 移动</span><kbd>P</kbd><span>预览</span><kbd>M</kbd><span>测量（Shift 水平/垂直）</span>
-    <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
+    <kbd>⌘/Ctrl D</kbd><span>复制</span><kbd>Delete</kbd><span>删除</span><kbd>⌘/Ctrl Z</kbd><span>撤销</span><kbd>⌘/Ctrl Shift Z</kbd><span>重做</span><kbd>T</kbd><span>切换 2D / 3D</span><kbd>F</kbd><span>适应窗口</span><kbd>Esc</kbd><span>取消选择</span>
   </div></section>`;
 }
 function renderPanel(){
@@ -563,29 +563,34 @@ function renderPanel(){
   p.innerHTML = overviewPanel(); bindOverview();
 }
 
-function overviewPanel(){
+/** 返回房间面积统计区块，供总览和户型编辑面板复用。 */
+function roomAreaMarkup(){
   const rows = ROOMS.map(r => {
     const st = state.rooms[r.id];
     return `<tr class="click" data-room="${r.id}"><td><span class="sw" style="background:${MATS[st.mat].sw}"></span>${esc(st.name)}${r.counted===false?' <span class="muted">*</span>':''}</td>
       <td class="r">${fmt(area(r.poly))} m²</td></tr>`;
   }).join('');
   const tot = ROOMS.filter(r => r.counted !== false).reduce((a,r) => a + area(r.poly), 0);
+  return `<section><h3>房间面积 <small>点击查看 / 更换地面</small></h3>
+    <table>${rows}</table>
+    <div class="total"><span>套内使用面积</span><b>${fmt(tot)} m²</b></div>
+    <div class="muted" style="font-size:11px;margin-top:4px">* 飘窗不计入使用面积；面积按墙体内净尺寸计算</div></section>`;
+}
+
+function overviewPanel(){
   const byMat = {};
   ROOMS.forEach(r => { const m = state.rooms[r.id].mat; byMat[m] = (byMat[m]||0) + area(r.poly); });
   let cost = 0;
   const matRows = Object.entries(byMat).map(([m,a]) => { const c = a*MATS[m].price*1.05; cost += c;
     return `<tr><td><span class="sw" style="background:${MATS[m].sw}"></span>${MATS[m].name}</td><td class="r">${fmt(a,1)} m²</td><td class="r">¥${Math.round(c).toLocaleString()}</td></tr>`; }).join('');
   return `
-  <section><h3>房间面积 <small>点击查看 / 更换地面</small></h3>
-    <table>${rows}</table>
-    <div class="total"><span>套内使用面积</span><b>${fmt(tot)} m²</b></div>
-    <div class="muted" style="font-size:11px;margin-top:4px">* 飘窗不计入使用面积；面积按墙体内净尺寸计算</div></section>
+  ${roomAreaMarkup()}
   <section><h3>地面材料估算 <small>含 5% 损耗</small></h3>
     <table>${matRows}</table>
     <div class="total"><span>地面材料合计</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
   <section><h3>方案统计</h3>
     <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div></div>
-    <div class="actions"><button class="btn" id="clearMeasure">清除测量 (${state.measures.length})</button>
+    <div class="actions"><button class="btn" id="clearMeasurePanel">清除测量 (${state.measures.length})</button>
       <button class="btn danger" id="clearFurn">清空家具</button></div></section>
   ${COARSE ? `<section><h3>触屏操作</h3><div class="kbd">
     <kbd>单指拖动</kbd><span>空白处平移画面</span><kbd>双指</kbd><span>捏合缩放、拖动平移</span>
@@ -597,9 +602,12 @@ function overviewPanel(){
   </div></section>` : ''}
   ${keyboardShortcutsMarkup()}`;
 }
+function clearMeasures(){
+  if (state.measures.length) mutate(() => state.measures = []);
+}
 function bindOverview(){
   document.querySelectorAll('#panel tr[data-room]').forEach(tr => tr.onclick = () => { select({kind:'room', id:tr.dataset.room}); if (is3D()) window.View3D.flyToRoom(tr.dataset.room); });
-  $('#clearMeasure').onclick = () => state.measures.length && mutate(() => state.measures = []);
+  $('#clearMeasurePanel').onclick = clearMeasures;
   $('#clearFurn').onclick = clearLayout;
 }
 
@@ -1147,6 +1155,7 @@ $('#fit').onclick = fitView;
 $('#s60').onclick = () => { setRatio(60); toast('已按 1:60 显示（与原始户型图同比例）'); };
 $('#s100').onclick = () => setRatio(100);
 $('#undo').onclick = undo; $('#redo').onclick = redo;
+$('#clearMeasure').onclick = clearMeasures;
 $('#clearAll').onclick = clearLayout;
 $('#clearCanvas').onclick = clearCanvas;
 
@@ -1246,6 +1255,7 @@ export {
   keyboardShortcutsMarkup,
   renderDims,
   getF,
+  roomAreaMarkup,
   planWindowMarkup,
   renderAll,
   renderLabels,
