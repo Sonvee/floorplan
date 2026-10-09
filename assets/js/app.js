@@ -477,9 +477,10 @@ function renderDims(plan = state.plan){
     dimension.segments.forEach((length, index) => {
       const midpoint = (points[index] + points[index + 1]) / 2;
       const x = horizontal ? midpoint : at - 70, y = horizontal ? at - 70 : midpoint;
-      // 墙厚等短分段沿标尺旋转文字，减少相邻数值互相覆盖。
-      const rotate = !horizontal || length < 400;
-      markup += `<text x="${x}" y="${y}" font-size="${length < 400 ? 120 : 180}" text-anchor="middle" fill="#7d7160"${rotate ? ` transform="rotate(-90 ${x} ${y})"` : ''}>${Math.round(length)}</text>`;
+      // 分段标尺中小于或等于 300mm 的数字改为垂直于标尺，并始终以分段中点为锚点。
+      const shortSegment = dimension.role === 'segmented' && length <= 300;
+      const rotate = horizontal ? shortSegment : !shortSegment;
+      markup += `<text x="${x}" y="${y}" font-size="${length < 400 ? 120 : 180}" text-anchor="middle" dominant-baseline="middle" fill="#7d7160"${rotate ? ` transform="rotate(-90 ${x} ${y})"` : ''}>${Math.round(length)}</text>`;
     });
     return markup;
   }).join('');
