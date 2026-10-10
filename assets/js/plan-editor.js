@@ -1552,6 +1552,8 @@ function onPointerMove(event) {
   event.preventDefault();
   event.stopImmediatePropagation();
   const point = screenToPlan(event);
+  $('#cx').textContent = Math.round(point.x) + ' mm';
+  $('#cy').textContent = Math.round(point.y) + ' mm';
   if ((editor.mode === 'room-rect' || editor.mode === 'foundation') && editor.draft.start) {
     editor.draft.current = snapRoomPoint(point, null);
     updateSnapGuides(editor.draft.current);
