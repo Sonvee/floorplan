@@ -1119,9 +1119,14 @@ let viewMode = '2d', switching = false;
 const is3D = () => viewMode === '3d';
 const TIPS = () => COARSE
   ? {'2d':'点或拖动家具库添加 · 单指拖动平移 · 双指缩放 · 选中家具后底部工具条可旋转 / 复制 / 删除',
-     '3d':'单指旋转 · 双指缩放 / 平移 · 点家具或地面编辑 · 点门开关'}
+     '3d':'单指旋转 · 双指缩放 / 平移 · 点家具或地面编辑 · 点门开关',
+     'plan':'绘制地基、房间、墙体、门窗 · 点击画布对象进行编辑 · 开启吸附可自动对齐'}
   : {'2d':'拖动左侧家具到平面图 · 滚轮缩放 · 拖动空白处平移 · T 切换 3D',
-     '3d':'3D 场景与平面方案实时同步 · 右侧面板修改会立即生效 · T 返回 2D'};
+     '3d':'3D 场景与平面方案实时同步 · 右侧面板修改会立即生效 · T 返回 2D',
+     'plan':'绘制地基、房间、墙体、门窗 · 点击画布对象进行编辑 · 开启吸附可自动对齐'};
+function syncTip(){
+  $('#tip').textContent = window.PlanEditor?.isActive?.() ? TIPS().plan : TIPS()[viewMode];
+}
 async function setView(m){
   if (m === viewMode || switching) return;
   if (!window.View3D) return toast('3D 引擎仍在加载或加载失败（需要联网加载 three.js）');
@@ -1129,7 +1134,7 @@ async function setView(m){
   viewMode = m;
   if (m === '3d'){ if (ui.tool !== 'select') setTool('select'); ui.mA = null; document.body.classList.add('m3d'); await window.View3D.enter(); }
   else { document.body.classList.remove('m3d'); await window.View3D.exit(); applyView(); }
-  $('#tip').textContent = TIPS()[m];
+  syncTip();
   switching = false; document.body.classList.remove('busy');
 }
 document.querySelectorAll('.menu-pop .btn').forEach(b => b.addEventListener('click', () => b.closest('details').open = false));
@@ -1244,7 +1249,7 @@ new ResizeObserver(() => {
 
 syncFullscreen();
 buildDefs(); buildLib(); renderOpenings();
-$('#tip').textContent = TIPS()['2d'];
+syncTip();
 fitView(); renderAll();
 setTool(ui.tool);
 
@@ -1277,7 +1282,8 @@ export {
   snap,
   snapMove,
   state,
-  syncPlanRefs,
+  syncPlanRefs,
+  syncTip,
   ui,
   view
 };
