@@ -19,7 +19,8 @@ import {
   snap,
   renderDims,
   state,
-  syncPlanRefs,
+  syncPlanRefs,
+  syncTip,
   ui,
   view
 } from './app.js';
@@ -1427,6 +1428,7 @@ function activatePlan() {
   $('#tgPlan').classList.add('on');
   $('#tgLib').classList.remove('on');
   renderPlanPanel();
+  syncTip();
 }
 
 function deactivatePlan(leftMode = 'lib') {
@@ -1445,6 +1447,7 @@ function deactivatePlan(leftMode = 'lib') {
   $('#tgLib').classList.toggle('on', leftMode === 'lib');
   drawer('lib', leftMode === 'lib');
   renderAll();
+  syncTip();
 }
 
 function releasePointer(event) {
