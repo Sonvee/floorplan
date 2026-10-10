@@ -956,6 +956,10 @@ function bindDimensions(prefix, entity, kind) {
 function renderPlanPanel() {
   if (!editor.active || !planPanel) return;
   planPanel.innerHTML = `${planPanelMarkup()}${roomAreaMarkup()}${keyboardShortcutsMarkup()}`;
+  planPanel.querySelectorAll('tr[data-room]').forEach(tr => tr.onclick = () => {
+    const index = ROOMS.findIndex(room => room.id === tr.dataset.room);
+    if (index >= 0) selectPlan({kind: 'room', index});
+  });
   const selected = editor.selected;
   if (!selected) {
     const input = $('#planDefaultWidth');
