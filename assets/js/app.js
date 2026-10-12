@@ -4,13 +4,24 @@ import {$, aabb, area, bbox, esc, fmt, furnSVG, loadJson, norm, perim} from './u
 const MATS = loadJson('assets/json/materials.json');
 const LIB = loadJson('assets/json/furniture.json').map(group => ({
   cat: group.category,
-  items: group.items.map(item => [item.type, item.name, item.width, item.depth, item.color])
+  items: group.items.map(item => [item.type, item.name, item.width, item.depth, item.color, item.price])
 }));
 const typeColor = t => { for (const c of LIB) for (const i of c.items) if (i[0]===t) return i[4]; return '#eee'; };
+/**
+ * 为旧方案补充人民币单件参考价；优先匹配同类型名称，改名后使用该类型的默认估价。
+ * @param {string} type 家具类型
+ * @param {string} name 家具名称
+ * @returns {number} 单件估价（元），资源库未知类型返回 0
+ */
+const furniturePrice = (type, name) => {
+  for (const c of LIB) for (const i of c.items) if (i[0]===type && i[1]===name) return i[5];
+  for (const c of LIB) for (const i of c.items) if (i[0]===type) return i[5];
+  return 0;
+};
 
 let _n = 1;
 const uid = () => 'f' + Date.now().toString(36) + (_n++);
-const F = (type,name,cx,cy,w,d,rot=0,color) => ({id:uid(),type,name,cx,cy,w,d,rot,color:color||typeColor(type)});
+const F = (type,name,cx,cy,w,d,rot=0,color,price) => ({id:uid(),type,name,cx,cy,w,d,rot,color:color||typeColor(type),price:Number.isFinite(price) ? price : furniturePrice(type,name)});
 
 function defaultFurniture(){ return []; }
 
@@ -202,7 +213,10 @@ function migrateLegacyBayRooms(plan, roomSettings){
 
 function fixState(s){
   const d = defaultState(), p = s.plan || {};
-  s.furniture = Array.isArray(s.furniture) ? s.furniture : [];
+  s.furniture = Array.isArray(s.furniture) ? s.furniture.map(f => ({
+    ...f,
+    price: Number.isFinite(f.price) ? f.price : furniturePrice(f.type, f.name)
+  })) : [];
   const plan = {
     walls: Array.isArray(p.walls) ? p.walls : d.plan.walls,
     wins: Array.isArray(p.wins) ? p.wins : d.plan.wins,
@@ -580,6 +594,7 @@ function roomAreaMarkup(){
 function overviewPanel(){
   const byMat = {};
   ROOMS.forEach(r => { const m = state.rooms[r.id].mat; byMat[m] = (byMat[m]||0) + area(r.poly); });
+  const furnitureCost = state.furniture.reduce((sum, f) => sum + f.price, 0);
   let cost = 0;
   const matRows = Object.entries(byMat).map(([m,a]) => { const c = a*MATS[m].price*1.05; cost += c;
     return `<tr><td><span class="sw" style="background:${MATS[m].sw}"></span>${MATS[m].name}</td><td class="r">${fmt(a,1)} m²</td><td class="r">¥${Math.round(c).toLocaleString()}</td></tr>`; }).join('');
@@ -589,9 +604,11 @@ function overviewPanel(){
     <table>${matRows}</table>
     <div class="total"><span>地面材料合计</span><b>¥${Math.round(cost).toLocaleString()}</b></div></section>
   <section><h3>方案统计</h3>
-    <div class="stats"><div><small>家具数量</small><span class="big">${state.furniture.length}</span></div></div>
-    <div class="actions"><button class="btn" id="clearMeasurePanel">清除测量 (${state.measures.length})</button>
-      <button class="btn danger" id="clearFurn">清空家具</button></div></section>
+    <div class="scheme-stats">
+      <div><small>家具数量</small><span class="big">${state.furniture.length}</span></div>
+      <div><small>家具总估价</small><span class="big scheme-cost">¥${Math.round(furnitureCost).toLocaleString()}</span></div>
+    </div>
+  </section>
   ${COARSE ? `<section><h3>触屏操作</h3><div class="kbd">
     <kbd>单指拖动</kbd><span>空白处平移画面</span><kbd>双指</kbd><span>捏合缩放、拖动平移</span>
     <kbd>家具库</kbd><span>点一下放到画面中央，或按住向右拖到指定位置</span>
@@ -607,8 +624,6 @@ function clearMeasures(){
 }
 function bindOverview(){
   document.querySelectorAll('#panel tr[data-room]').forEach(tr => tr.onclick = () => { select({kind:'room', id:tr.dataset.room}); if (is3D()) window.View3D.flyToRoom(tr.dataset.room); });
-  $('#clearMeasurePanel').onclick = clearMeasures;
-  $('#clearFurn').onclick = clearLayout;
 }
 
 // 底部浮动工具条：触屏没有键盘，旋转 / 复制 / 删除都放在这里
@@ -695,6 +710,7 @@ function closeDrawers(){ if (narrow()) drawer(null); }
 
 function roomPanel(r){
   const st = state.rooms[r.id], a = area(r.poly), [x0,y0,x1,y1] = bbox(r.poly), inside = state.furniture.filter(f => f.cx>x0&&f.cx<x1&&f.cy>y0&&f.cy<y1);
+  const furnitureCost = inside.reduce((sum, f) => sum + f.price, 0);
   const mats = Object.entries(MATS).map(([k,m]) => `<button class="mat ${k===st.mat?'on':''}" data-mat="${k}"><i style="background:${m.sw}"></i><span>${m.name}<small>¥${m.price}/m²</small></span></button>`).join('');
   return `<section><h3>房间</h3>
     <div class="form"><label class="full">名称<input id="rName" value="${esc(st.name)}"></label></div>
@@ -707,7 +723,9 @@ function roomPanel(r){
   <section><h3>地面材料</h3><div class="mats">${mats}</div>
     <div class="total"><span>材料估价</span><b>¥${Math.round(a*MATS[st.mat].price*1.05).toLocaleString()}</b></div></section>
   <section><h3>房间内家具 <small>${`${inside.length} 件`}</small></h3>
-    <table>${inside.map(f => `<tr class="click" data-fid="${f.id}"><td>${esc(f.name)}</td><td class="r muted">${f.w}×${f.d}</td></tr>`).join('') || `<tr><td class="muted">暂无</td></tr>`}</table>
+    <table>${inside.map(f => `<tr class="click" data-fid="${f.id}"><td>${esc(f.name)}</td><td class="r muted">${f.w}×${f.d}</td><td class="r">¥${Math.round(f.price).toLocaleString()}</td></tr>`).join('') || `<tr><td class="muted" colspan="3">暂无</td></tr>`}</table>
+    <div class="total"><span>家具总估价</span><b>¥${Math.round(furnitureCost).toLocaleString()}</b></div>
+    <div class="muted" style="font-size:11px;margin-top:4px">人民币参考价，按件估算</div>
     <div class="actions"><button class="btn" id="back">← 返回总览</button></div></section>`;
 }
 function bindRoomPanel(){
@@ -777,7 +795,7 @@ function pushOut(f){
   }
 }
 function addItem(it, x, y){
-  const [type,name,w,d,color] = it, f = F(type,name,Math.round(x/10)*10,Math.round(y/10)*10,w,d,0,color);
+  const [type,name,w,d,color,price] = it, f = F(type,name,Math.round(x/10)*10,Math.round(y/10)*10,w,d,0,color,price);
   pushOut(f);
   ui.sel = {kind:'furn', id:f.id};
   mutate(() => type==='rug' ? state.furniture.unshift(f) : state.furniture.push(f));
