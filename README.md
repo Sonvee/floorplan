@@ -42,7 +42,7 @@ python3 -m http.server 8000
 # 访问 http://localhost:8000
 ```
 
-> Three.js 核心库和项目使用的 `examples/jsm` addon 已本地化到 `assets/lib/three/`，无需依赖 CDN。
+> 请保留完整的 `assets/` 目录。Three.js 和内置数据均通过本地普通脚本加载，无需联网、安装依赖或修改浏览器安全设置。
 
 ## 目录结构
 
@@ -55,7 +55,9 @@ python3 -m http.server 8000
 │   ├── js/
 │   │   ├── app.js              # 2D 编辑器、状态、家具库与交互
 │   │   └── scene3d.js          # Three.js 3D 场景与漫游
-│   ├── json/                   # 家具库、材料等静态数据资源
+│   ├── data/                   # 家具库、材料、户型元素的数据脚本
+│   ├── example/                # 内置样例方案脚本
+│   ├── prompt/                 # AI 户型提示词文本脚本
 │   ├── images/                 # 预留：纹理、图标、预览图
 │   ├── fonts/                  # 预留：本地字体
 │   └── lib/                    # 预留：第三方库本地副本说明
@@ -63,7 +65,9 @@ python3 -m http.server 8000
 └── LICENSE
 ```
 
-当前仍然保持“无需构建、直接部署”的使用方式。Three.js `0.160.0` 通过 `index.html` 中的 import map 从 `assets/lib/three/` 加载，`examples/jsm` 目录仅保留当前 3D 场景实际使用的 addon。
+当前保持“无需构建、直接部署”的使用方式。页面通过普通脚本依次加载内置数据、工具函数、2D 编辑器、户型编辑器和 Three.js 3D 场景，支持 `file://` 和 HTTP。Three.js `0.160.0` 使用 `assets/lib/three/classic/` 下的经典脚本版本，原始 ESM 文件保留用于对照升级。
+
+浏览器对 `file://` 下的本地存储行为存在差异；重要方案请通过“文件 → 导出方案 JSON”保存备份。
 
 ## 快捷键
 
@@ -91,10 +95,13 @@ python3 -m http.server 8000
 
 ## 自定义户型
 
-为保持拆分后的职责边界，家具库和地面材料已迁移到 `assets/json/`，后续可继续按资源类型拆分：
+家具库和地面材料位于 `assets/data/`，作为数据脚本加载：
 
-- `assets/json/furniture.json`：家具分类、类型、名称、默认尺寸和颜色
-- `assets/json/materials.json`：地面材料名称、单价和色板
+- `assets/data/furniture.js`：家具分类、类型、名称、默认尺寸和颜色
+- `assets/data/materials.js`：地面材料名称、单价和色板
+- `assets/data/plan-elements.js`：墙体、窗户和门类型配置
+- `assets/example/plan-demo.js`：内置样例方案
+- `assets/prompt/plan-image-to-json.js`：从文件菜单下载的 Markdown 提示词
 - `WALLS` / `WINS`：墙体与窗洞，仍由户型初始化逻辑维护
 - `buildFurniture()`：各类家具的 3D 模型
 
@@ -107,3 +114,4 @@ python3 -m http.server 8000
 ## 许可协议
 
 [MIT](LICENSE)
+

@@ -1,8 +1,8 @@
-import {$, aabb, area, bbox, esc, fmt, furnSVG, loadJson, norm, perim} from './utils.js';
-
-// JSON 资源位于页面根目录下，保持家具库和材料配置与业务逻辑分离。
-const MATS = loadJson('assets/json/materials.json');
-const LIB = loadJson('assets/json/furniture.json').map(group => ({
+'use strict';
+// 与 utils.js 共用经典脚本的全局作用域，编辑器可实时读取重新赋值后的户型数组。
+// 内置配置由经典脚本预先加载，兼容直接双击 index.html。
+const MATS = window.PlanData.materials;
+const LIB = window.PlanData.furniture.map(group => ({
   cat: group.category,
   items: group.items.map(item => [item.type, item.name, item.width, item.depth, item.color])
 }));
@@ -1129,7 +1129,7 @@ function syncTip(){
 }
 async function setView(m){
   if (m === viewMode || switching) return;
-  if (!window.View3D) return toast('3D 引擎仍在加载或加载失败（需要联网加载 three.js）');
+  if (!window.View3D) return toast('3D 引擎仍在加载或加载失败，请检查本地资源文件是否完整');
   switching = true; document.body.classList.add('busy');
   viewMode = m;
   if (m === '3d'){ if (ui.tool !== 'select') setTool('select'); ui.mA = null; document.body.classList.add('m3d'); await window.View3D.enter(); }
@@ -1209,23 +1209,15 @@ function importPlanText(txt, successMessage = '方案已导入') {
   }
 }
 $('#importJson').onclick = () => $('#fileIn').click();
-$('#importDemo').onclick = async () => {
+$('#importDemo').onclick = () => {
   try {
-    const response = await fetch('assets/example/plan-demo.json');
-    if (!response.ok) throw new Error('样例方案加载失败');
-    importPlanText(await response.text(), '样例方案已导入');
+    importPlanText(JSON.stringify(window.PlanData.demo), '样例方案已导入');
   } catch (err) {
     toast('样例方案加载失败');
   }
 };
-$('#downloadPrompt').onclick = async () => {
-  try {
-    const response = await fetch('assets/prompt/plan-image-to-json.md');
-    if (!response.ok) throw new Error('提示词下载失败');
-    download('plan-image-to-json.md', await response.blob());
-  } catch (err) {
-    toast('AI户型提示词下载失败');
-  }
+$('#downloadPrompt').onclick = () => {
+  download('plan-image-to-json.md', new Blob([window.PlanData.prompt], {type:'text/markdown;charset=utf-8'}));
 };
 $('#fileIn').onchange = async e => {
   const file = e.target.files[0]; if (!file) return;
@@ -1253,37 +1245,3 @@ syncTip();
 fitView(); renderAll();
 setTool(ui.tool);
 
-export {
-  BOUNDS,
-  COARSE,
-  DOORS,
-  LIB,
-  ROOMS,
-  TAP,
-  WALLS,
-  WINS,
-  applyView,
-  closeDrawers,
-  commit,
-  drawer,
-  keyboardShortcutsMarkup,
-  renderDims,
-  getF,
-  roomAreaMarkup,
-  planWindowMarkup,
-  renderAll,
-  renderLabels,
-  renderOpenings,
-  renderRooms,
-  renderWalls,
-  slidingWindowPanels,
-  replaceState,
-  select,
-  snap,
-  snapMove,
-  state,
-  syncPlanRefs,
-  syncTip,
-  ui,
-  view
-};

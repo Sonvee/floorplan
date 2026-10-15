@@ -1,29 +1,5 @@
-import {$, area, esc, fmt, loadJson, perim, planToolSVG} from './utils.js';
-import {
-  DOORS,
-  ROOMS,
-  WALLS,
-  WINS,
-  applyView,
-  commit,
-  drawer,
-  keyboardShortcutsMarkup,
-  planWindowMarkup,
-  renderAll,
-  renderLabels,
-  roomAreaMarkup,
-  renderOpenings,
-  renderRooms,
-  renderWalls,
-  replaceState,
-  snap,
-  renderDims,
-  state,
-  syncPlanRefs,
-  syncTip,
-  ui,
-  view
-} from './app.js';
+(function () {
+'use strict';
 /* 户型编辑器：房间、墙体、窗户和门的独立绘制与编辑逻辑。 */
 const planTools = $('#planTools');
 const furnitureLibrary = $('#lib');
@@ -31,7 +7,7 @@ const planSvg = $('#plan');
 const draftLayer = $('#gDraft');
 const selectionLayer = $('#gSel');
 const planPanel = $('#panel');
-const planTypes = loadJson('assets/json/plan-elements.json');
+const planTypes = window.PlanData.planElements;
 const PANES = 'huxing-panes';
 const PLAN_SETTINGS = 'huxing-plan-settings';
 
@@ -1718,7 +1694,7 @@ function init() {
 /**
  * 对原有家具渲染流程提供户型编辑器的最小公共接口。
  */
-export const PlanEditor = {
+const PlanEditor = {
   init,
   isActive: () => editor.active,
   setPreview,
@@ -1746,3 +1722,5 @@ export const PlanEditor = {
 
 window.PlanEditor = PlanEditor;
 PlanEditor.init();
+
+})();

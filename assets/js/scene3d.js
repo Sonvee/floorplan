@@ -1,36 +1,12 @@
+(function () {
+'use strict';
+const {OrbitControls, PointerLockControls, RoundedBoxGeometry, RoomEnvironment, CSS2DRenderer, CSS2DObject} = THREE;
 /* ============================================================
  *  3D 场景（three.js）—— 与 2D 共用 state / ui，切换时带过渡动画：
  *  2D → 3D：3D 相机先以正俯视对齐当前 2D 视口（比例、位置一致），
  *           交叉淡入后镜头倾斜环绕、墙体从地面升起、家具随后立起；
  *  3D → 2D：反向——家具收起、墙体下沉、镜头回到正俯视并淡出到平面图。
  * ============================================================ */
-import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {PointerLockControls} from 'three/addons/controls/PointerLockControls.js';
-import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
-import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
-import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
-import {$, area, esc} from './utils.js';
-import {
-  COARSE,
-  DOORS,
-  ROOMS,
-  TAP,
-  WALLS,
-  WINS,
-  closeDrawers,
-  commit,
-  getF,
-  renderAll,
-  select,
-  slidingWindowPanels,
-  snap,
-  snapMove,
-  state,
-  ui,
-  view
-} from './app.js';
-
 const stage = $('#stage'), host = $('#view3d');
 const OX = 6000, OY = 5300, H = 2.8, FOV = 45;       // 户型中心放在世界原点，层高 2.8 m
 const wx = x => (x - OX) / 1000, wz = y => (y - OY) / 1000, M = v => v / 1000;
@@ -1330,5 +1306,7 @@ function loop(){
 
 function shot(){ const a = document.createElement('a'); a.download = '户型装修方案' + '-3D.png'; a.href = renderer.domElement.toDataURL('image/png'); a.click(); }
 
-export const View3D = {enter, exit, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
+const View3D = {enter, exit, sync:() => sync(), shot, groundAt, flyToRoom:id => active && !anim && flyToRoom(id), walking:() => active && opt.mode === 'walk'};
 window.View3D = View3D;
+
+})();

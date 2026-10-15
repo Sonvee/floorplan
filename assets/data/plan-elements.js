@@ -1,4 +1,6 @@
-{
+/** 内置数据以经典脚本加载，供离线页面使用。 */
+window.PlanData ??= {};
+window.PlanData.planElements = {
   "walls": [
     {
       "type": "n",
@@ -65,4 +67,4 @@
       "hint": "拖出门洞"
     }
   ]
-}
+};

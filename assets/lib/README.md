@@ -1,21 +1,7 @@
-# lib
+# 第三方库
 
-第三方库目录。
+Three.js 版本为 0.160.0（r160），许可证见 [three/LICENSE](three/LICENSE)。
 
-当前项目已将 Three.js `0.160.0` 的核心文件和项目实际使用的 `examples/jsm` addon 本地化：
+index.html 使用 three/classic/ 下的经典脚本，支持 file:// 页面：先加载 three.min.js，再加载 controls、geometries、environments、renderers 中项目使用的 addon。核心库暴露 window.THREE，各 addon 在自己的函数作用域中运行，并将导出附加到 THREE。
 
-```text
-assets/lib/three/
-├── build/three.module.min.js
-├── examples/jsm/
-└── LICENSE
-```
-
-`index.html` 通过 import map 使用本地资源：
-
-```json
-{
-  "three": "./assets/lib/three/build/three.module.min.js",
-  "three/addons/": "./assets/lib/three/examples/jsm/"
-}
-```
+three/build/three.module.min.js 与 three/examples/jsm/ 保留原始 ESM 版本供对照。classic 版本仅调整模块包装：核心库的导出变为 window.THREE；addon 从 THREE 读取依赖并把公开类附加到 THREE。升级 Three.js 时应同步更新两个版本，保留许可证，并由开发者手动验证 3D 功能。

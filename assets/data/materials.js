@@ -1,4 +1,6 @@
-{
+/** 内置数据以经典脚本加载，供离线页面使用。 */
+window.PlanData ??= {};
+window.PlanData.materials = {
   "wood": {
     "name": "橡木地板",
     "price": 320,
@@ -39,4 +41,4 @@
     "price": 200,
     "sw": "#c9c3d3"
   }
-}
+};

@@ -9,14 +9,6 @@
 <meta name="theme-color" content="#fffdf9">
 <title>山屋 · 户型装修室内设计</title>
   <link rel="stylesheet" href="assets/css/main.css">
-  <script type="importmap">
-  {
-    "imports": {
-    "three":"./assets/lib/three/build/three.module.min.js",
-      "three/addons/":"./assets/lib/three/examples/jsm/"
-    }
-  }
-  </script>
   <script>
   try {
     const panes = JSON.parse(localStorage.getItem('huxing-panes') || '{}');
@@ -182,8 +174,21 @@
 </div>
 <div id="toast"></div>
 
-  <script type="module" src="assets/js/app.js"></script>
-  <script type="module" src="assets/js/plan-editor.js"></script>
-  <script type="module" src="assets/js/scene3d.js"></script>
+  <!-- 普通脚本按依赖顺序加载，兼容 file:// 和 HTTP。 -->
+  <script src="assets/data/materials.js"></script>
+  <script src="assets/data/furniture.js"></script>
+  <script src="assets/data/plan-elements.js"></script>
+  <script src="assets/example/plan-demo.js"></script>
+  <script src="assets/prompt/plan-image-to-json.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/plan-editor.js"></script>
+  <script src="assets/lib/three/classic/three.min.js"></script>
+  <script src="assets/lib/three/classic/controls/OrbitControls.js"></script>
+  <script src="assets/lib/three/classic/controls/PointerLockControls.js"></script>
+  <script src="assets/lib/three/classic/geometries/RoundedBoxGeometry.js"></script>
+  <script src="assets/lib/three/classic/environments/RoomEnvironment.js"></script>
+  <script src="assets/lib/three/classic/renderers/CSS2DRenderer.js"></script>
+  <script src="assets/js/scene3d.js"></script>
 </body>
 </html>

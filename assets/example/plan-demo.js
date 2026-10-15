@@ -1,4 +1,6 @@
-{
+/** 内置数据以经典脚本加载，供离线页面使用。 */
+window.PlanData ??= {};
+window.PlanData.demo = {
   "furniture": [
     {
       "id": "fmuxnjf7447",
@@ -1697,4 +1699,4 @@
   },
   "demolished": [],
   "measures": []
-}
+};

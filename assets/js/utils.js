@@ -1,39 +1,30 @@
+'use strict';
 /* ============================================================
  * 共享工具方法
  * 供 app.js、plan-editor.js 和 scene3d.js 复用。
  * ============================================================ */
 
-export function loadJson(path){
-  const request = new XMLHttpRequest();
-  request.open('GET', new URL(path, document.baseURI), false);
-  request.send();
-  if ((request.status >= 200 && request.status < 300) || (request.status === 0 && request.responseText)) {
-    return JSON.parse(request.responseText);
-  }
-  throw new Error(`JSON 资源加载失败：${path} (${request.status})`);
-}
-
-export const $ = selector => document.querySelector(selector);
+const $ = selector => document.querySelector(selector);
 
 /* 几何与数字工具 */
-export const area = poly => Math.abs(poly.reduce((a,p,i) => { const q = poly[(i+1)%poly.length]; return a + p[0]*q[1] - q[0]*p[1]; }, 0)) / 2 / 1e6;
-export const perim = poly => poly.reduce((a,p,i) => { const q = poly[(i+1)%poly.length]; return a + Math.hypot(q[0]-p[0], q[1]-p[1]); }, 0) / 1000;
-export const bbox = poly => { const xs = poly.map(p=>p[0]), ys = poly.map(p=>p[1]); return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; };
-export function aabb(f){ const a = f.rot*Math.PI/180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)); return {hw:f.w/2*c + f.d/2*s, hh:f.w/2*s + f.d/2*c}; }
-export const fmt = (n, d=2) => n.toFixed(d);
-export const norm = a => ((Math.round(a) % 360) + 360) % 360;
+const area = poly => Math.abs(poly.reduce((a,p,i) => { const q = poly[(i+1)%poly.length]; return a + p[0]*q[1] - q[0]*p[1]; }, 0)) / 2 / 1e6;
+const perim = poly => poly.reduce((a,p,i) => { const q = poly[(i+1)%poly.length]; return a + Math.hypot(q[0]-p[0], q[1]-p[1]); }, 0) / 1000;
+const bbox = poly => { const xs = poly.map(p=>p[0]), ys = poly.map(p=>p[1]); return [Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]; };
+function aabb(f){ const a = f.rot*Math.PI/180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)); return {hw:f.w/2*c + f.d/2*s, hh:f.w/2*s + f.d/2*c}; }
+const fmt = (n, d=2) => n.toFixed(d);
+const norm = a => ((Math.round(a) % 360) + 360) % 360;
 
 /* 颜色工具 */
-export function hex2rgb(h){ h = h.replace('#',''); if (h.length===3) h = h.split('').map(c=>c+c).join(''); const n = parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
-export function shade(h,k){ const f = v => Math.max(0,Math.min(255,Math.round(k>1 ? v+(255-v)*(k-1)*2 : v*k))); return '#'+hex2rgb(h).map(v=>f(v).toString(16).padStart(2,'0')).join(''); }
+function hex2rgb(h){ h = h.replace('#',''); if (h.length===3) h = h.split('').map(c=>c+c).join(''); const n = parseInt(h,16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function shade(h,k){ const f = v => Math.max(0,Math.min(255,Math.round(k>1 ? v+(255-v)*(k-1)*2 : v*k))); return '#'+hex2rgb(h).map(v=>f(v).toString(16).padStart(2,'0')).join(''); }
 
 /* 家具 SVG 图例工具 */
-export const ST = 'stroke="#3d3a34" stroke-width="1" vector-effect="non-scaling-stroke"';
-export const rc = (x,y,w,h,f,ex='') => `<rect x="${x}" y="${y}" width="${Math.max(0,w)}" height="${Math.max(0,h)}" fill="${f}" ${ST} ${ex}/>`;
-export const ec = (cx,cy,rx,ry,f,ex='') => `<ellipse cx="${cx}" cy="${cy}" rx="${Math.max(0,rx)}" ry="${Math.max(0,ry)}" fill="${f}" ${ST} ${ex}/>`;
-export const ln = (x1,y1,x2,y2,ex='') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${ST} ${ex}/>`;
-export const pa = (d,f='none',ex='') => `<path d="${d}" fill="${f}" ${ST} ${ex}/>`;
-export const DASH = 'stroke-dasharray="4 3"';
+const ST = 'stroke="#3d3a34" stroke-width="1" vector-effect="non-scaling-stroke"';
+const rc = (x,y,w,h,f,ex='') => `<rect x="${x}" y="${y}" width="${Math.max(0,w)}" height="${Math.max(0,h)}" fill="${f}" ${ST} ${ex}/>`;
+const ec = (cx,cy,rx,ry,f,ex='') => `<ellipse cx="${cx}" cy="${cy}" rx="${Math.max(0,rx)}" ry="${Math.max(0,ry)}" fill="${f}" ${ST} ${ex}/>`;
+const ln = (x1,y1,x2,y2,ex='') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${ST} ${ex}/>`;
+const pa = (d,f='none',ex='') => `<path d="${d}" fill="${f}" ${ST} ${ex}/>`;
+const DASH = 'stroke-dasharray="4 3"';
 
 /**
  * 绘制户型工具的 SVG 图例，复用家具图例的矩形、线段与路径工具。
@@ -42,7 +33,7 @@ export const DASH = 'stroke-dasharray="4 3"';
  * @param {string} [type] 墙体、窗户或门的具体类型
  * @returns {string} 使用统一 viewBox 的 SVG 图标；未知工具返回空字符串
  */
-export function planToolSVG(tool, type) {
+function planToolSVG(tool, type) {
   let content = '';
   switch (tool) {
     case 'foundation': {
@@ -115,7 +106,7 @@ export function planToolSVG(tool, type) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${content}</svg>`;
 }
 
-export function furnSVG(t,w,d,c){
+function furnSVG(t,w,d,c){
   const x = -w/2, y = -d/2, m = Math.min(w,d);
   switch (t){
     case 'bed': {
@@ -217,4 +208,4 @@ export function furnSVG(t,w,d,c){
 }
 
 /* HTML 输出安全转义 */
-export const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
