@@ -64,8 +64,19 @@ header {
 }
 .brand {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin-right: 8px;
+}
+.brand img {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+.brand-copy {
+  display: flex;
+  flex-direction: column;
   line-height: 1.25;
 }
 .brand b {
@@ -544,12 +555,34 @@ kbd {
   gap: 8px;
   margin-bottom: 6px;
 }
+.scheme-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  background: #faf6ef;
+  border-radius: 8px;
+  padding: 12px 8px;
+}
+.scheme-stats > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+.scheme-cost {
+  color: var(--accent);
+}
 .stats div {
   background: #faf6ef;
   border-radius: 8px;
   padding: 8px;
 }
-.stats small {
+.stats small,
+.scheme-stats small {
   display: block;
   color: var(--muted);
   font-size: 11px;

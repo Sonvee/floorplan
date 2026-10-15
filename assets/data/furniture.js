@@ -9,84 +9,96 @@ window.PlanData.furniture = [
         "name": "双人床 1.8m",
         "width": 1800,
         "depth": 2000,
-        "color": "#c9d6df"
+        "color": "#c9d6df",
+        "price": 4999
       },
       {
         "type": "bed",
         "name": "双人床 1.5m",
         "width": 1500,
         "depth": 2000,
-        "color": "#d8c7dc"
+        "color": "#d8c7dc",
+        "price": 3999
       },
       {
         "type": "bed",
         "name": "单人床",
         "width": 1200,
         "depth": 2000,
-        "color": "#e8d5b5"
+        "color": "#e8d5b5",
+        "price": 1999
       },
       {
         "type": "crib",
         "name": "婴儿床",
         "width": 1250,
         "depth": 700,
-        "color": "#efe3d0"
+        "color": "#efe3d0",
+        "price": 1599
       },
       {
         "type": "nightstand",
         "name": "床头柜",
         "width": 450,
         "depth": 400,
-        "color": "#e8dccb"
+        "color": "#e8dccb",
+        "price": 699
       },
       {
         "type": "wardrobe",
         "name": "衣柜",
         "width": 2000,
         "depth": 600,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 4999
       },
       {
         "type": "wardrobe",
         "name": "小衣柜",
         "width": 1200,
         "depth": 550,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 2999
       },
       {
         "type": "dresser",
         "name": "梳妆台",
         "width": 1000,
         "depth": 450,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 1899
       },
       {
         "type": "desk",
         "name": "书桌",
         "width": 1200,
         "depth": 600,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 1599
       },
       {
         "type": "chair",
         "name": "椅子",
         "width": 450,
         "depth": 480,
-        "color": "#cfc6b8"
+        "color": "#cfc6b8",
+        "price": 499
       },
       {
         "type": "bookshelf",
         "name": "书架",
         "width": 800,
         "depth": 300,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 1299
       },
       {
         "type": "baycushion",
         "name": "飘窗垫",
         "width": 520,
         "depth": 1800,
-        "color": "#e7dccd"
+        "color": "#e7dccd",
+        "price": 899
       }
     ]
   },
@@ -98,98 +110,112 @@ window.PlanData.furniture = [
         "name": "三人沙发",
         "width": 2400,
         "depth": 900,
-        "color": "#b7c4b0"
+        "color": "#b7c4b0",
+        "price": 4599
       },
       {
         "type": "sofa",
         "name": "双人沙发",
         "width": 1700,
         "depth": 880,
-        "color": "#c3cbd6"
+        "color": "#c3cbd6",
+        "price": 3299
       },
       {
         "type": "cornersofa",
         "name": "转角沙发",
         "width": 2800,
         "depth": 1700,
-        "color": "#b7c4b0"
+        "color": "#b7c4b0",
+        "price": 6999
       },
       {
         "type": "armchair",
         "name": "单人沙发",
         "width": 850,
         "depth": 850,
-        "color": "#d6b99a"
+        "color": "#d6b99a",
+        "price": 1999
       },
       {
         "type": "beanbag",
         "name": "懒人沙发",
         "width": 800,
         "depth": 800,
-        "color": "#e0b98f"
+        "color": "#e0b98f",
+        "price": 699
       },
       {
         "type": "coffeetable",
         "name": "茶几",
         "width": 1300,
         "depth": 650,
-        "color": "#e8dccb"
+        "color": "#e8dccb",
+        "price": 1299
       },
       {
         "type": "sidetable",
         "name": "边几",
         "width": 500,
         "depth": 500,
-        "color": "#d9c3a3"
+        "color": "#d9c3a3",
+        "price": 499
       },
       {
         "type": "tvstand",
         "name": "电视柜",
         "width": 2400,
         "depth": 400,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 2399
       },
       {
         "type": "rug",
         "name": "地毯",
         "width": 2400,
         "depth": 1700,
-        "color": "#d9cbb8"
+        "color": "#d9cbb8",
+        "price": 1299
       },
       {
         "type": "shoecab",
         "name": "鞋柜",
         "width": 1000,
         "depth": 350,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 1599
       },
       {
         "type": "shoecab",
         "name": "玄关柜",
         "width": 1400,
         "depth": 380,
-        "color": "#e6dccc"
+        "color": "#e6dccc",
+        "price": 2299
       },
       {
         "type": "floorlamp",
         "name": "落地灯",
         "width": 450,
         "depth": 450,
-        "color": "#3d3a34"
+        "color": "#3d3a34",
+        "price": 699
       },
       {
         "type": "plant",
         "name": "绿植",
         "width": 500,
         "depth": 500,
-        "color": "#a9c39b"
+        "color": "#a9c39b",
+        "price": 399
       },
       {
         "type": "plant",
         "name": "大绿植",
         "width": 700,
         "depth": 700,
-        "color": "#9dbb8c"
+        "color": "#9dbb8c",
+        "price": 799
       }
     ]
   },
@@ -201,77 +227,88 @@ window.PlanData.furniture = [
         "name": "餐桌",
         "width": 1400,
         "depth": 800,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 1999
       },
       {
         "type": "table",
         "name": "六人餐桌",
         "width": 1800,
         "depth": 900,
-        "color": "#d8c2a2"
+        "color": "#d8c2a2",
+        "price": 2999
       },
       {
         "type": "roundtable",
         "name": "圆桌",
         "width": 1000,
         "depth": 1000,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 1699
       },
       {
         "type": "chair",
         "name": "餐椅",
         "width": 450,
         "depth": 480,
-        "color": "#cfc6b8"
+        "color": "#cfc6b8",
+        "price": 499
       },
       {
         "type": "island",
         "name": "岛台",
         "width": 1800,
         "depth": 900,
-        "color": "#e9e5de"
+        "color": "#e9e5de",
+        "price": 4999
       },
       {
         "type": "barstool",
         "name": "吧椅",
         "width": 420,
         "depth": 420,
-        "color": "#6b5d4c"
+        "color": "#6b5d4c",
+        "price": 599
       },
       {
         "type": "counter",
         "name": "橱柜台面",
         "width": 1600,
         "depth": 600,
-        "color": "#e9e5de"
+        "color": "#e9e5de",
+        "price": 3599
       },
       {
         "type": "stove",
         "name": "燃气灶",
         "width": 750,
         "depth": 450,
-        "color": "#dcdcdc"
+        "color": "#dcdcdc",
+        "price": 1999
       },
       {
         "type": "ksink",
         "name": "水槽",
         "width": 800,
         "depth": 450,
-        "color": "#e1e6ea"
+        "color": "#e1e6ea",
+        "price": 1299
       },
       {
         "type": "fridge",
         "name": "冰箱",
         "width": 700,
         "depth": 700,
-        "color": "#dfe4e8"
+        "color": "#dfe4e8",
+        "price": 3999
       },
       {
         "type": "cabinet",
         "name": "餐边柜",
         "width": 1600,
         "depth": 400,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 2699
       }
     ]
   },
@@ -283,56 +320,64 @@ window.PlanData.furniture = [
         "name": "马桶",
         "width": 400,
         "depth": 700,
-        "color": "#ffffff"
+        "color": "#ffffff",
+        "price": 2499
       },
       {
         "type": "vanity",
         "name": "浴室柜",
         "width": 800,
         "depth": 500,
-        "color": "#eef1f3"
+        "color": "#eef1f3",
+        "price": 2499
       },
       {
         "type": "vanity",
         "name": "双盆浴室柜",
         "width": 1200,
         "depth": 500,
-        "color": "#eef1f3"
+        "color": "#eef1f3",
+        "price": 3999
       },
       {
         "type": "shower",
         "name": "淋浴房",
         "width": 900,
         "depth": 900,
-        "color": "#e4edf2"
+        "color": "#e4edf2",
+        "price": 2999
       },
       {
         "type": "bathtub",
         "name": "浴缸",
         "width": 1600,
         "depth": 750,
-        "color": "#eef3f6"
+        "color": "#eef3f6",
+        "price": 4999
       },
       {
         "type": "washer",
         "name": "洗衣机",
         "width": 600,
         "depth": 600,
-        "color": "#e6ebee"
+        "color": "#e6ebee",
+        "price": 2999
       },
       {
         "type": "waterheater",
         "name": "电热水器",
         "width": 800,
         "depth": 450,
-        "color": "#f4f4f2"
+        "color": "#f4f4f2",
+        "price": 1899
       },
       {
         "type": "cabinet",
         "name": "储物柜",
         "width": 1000,
         "depth": 400,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 1999
       }
     ]
   },
@@ -344,63 +389,72 @@ window.PlanData.furniture = [
         "name": "65 寸电视",
         "width": 1450,
         "depth": 80,
-        "color": "#1d1d1f"
+        "color": "#1d1d1f",
+        "price": 4999
       },
       {
         "type": "tv",
         "name": "55 寸电视",
         "width": 1230,
         "depth": 80,
-        "color": "#1d1d1f"
+        "color": "#1d1d1f",
+        "price": 3299
       },
       {
         "type": "fridge",
         "name": "对开门冰箱",
         "width": 910,
         "depth": 700,
-        "color": "#c9ced3"
+        "color": "#c9ced3",
+        "price": 5999
       },
       {
         "type": "aircon",
         "name": "柜机空调",
         "width": 500,
         "depth": 380,
-        "color": "#f6f7f8"
+        "color": "#f6f7f8",
+        "price": 4999
       },
       {
         "type": "acwall",
         "name": "挂机空调",
         "width": 900,
         "depth": 250,
-        "color": "#f6f7f8"
+        "color": "#f6f7f8",
+        "price": 2999
       },
       {
         "type": "dishwasher",
         "name": "洗碗机",
         "width": 600,
         "depth": 600,
-        "color": "#c9ced3"
+        "color": "#c9ced3",
+        "price": 4999
       },
       {
         "type": "ovencol",
         "name": "蒸烤箱高柜",
         "width": 600,
         "depth": 600,
-        "color": "#efe6d8"
+        "color": "#efe6d8",
+        "price": 6999
       },
       {
         "type": "dryer",
         "name": "烘干机",
         "width": 600,
         "depth": 600,
-        "color": "#e6ebee"
+        "color": "#e6ebee",
+        "price": 3999
       },
       {
         "type": "purifier",
         "name": "空气净化器",
         "width": 400,
         "depth": 300,
-        "color": "#f4f4f2"
+        "color": "#f4f4f2",
+        "price": 1499
       }
     ]
   },
@@ -412,42 +466,48 @@ window.PlanData.furniture = [
         "name": "长书桌",
         "width": 1600,
         "depth": 700,
-        "color": "#d8c2a2"
+        "color": "#d8c2a2",
+        "price": 2199
       },
       {
         "type": "officechair",
         "name": "办公椅",
         "width": 620,
         "depth": 620,
-        "color": "#4a4f55"
+        "color": "#4a4f55",
+        "price": 1899
       },
       {
         "type": "bookshelf",
         "name": "大书架",
         "width": 1600,
         "depth": 350,
-        "color": "#e2cfb4"
+        "color": "#e2cfb4",
+        "price": 2999
       },
       {
         "type": "piano",
         "name": "立式钢琴",
         "width": 1500,
         "depth": 600,
-        "color": "#1f1d1b"
+        "color": "#1f1d1b",
+        "price": 29999
       },
       {
         "type": "treadmill",
         "name": "跑步机",
         "width": 800,
         "depth": 1800,
-        "color": "#3a3a3c"
+        "color": "#3a3a3c",
+        "price": 3999
       },
       {
         "type": "armchair",
         "name": "阅读椅",
         "width": 750,
         "depth": 800,
-        "color": "#c9a98a"
+        "color": "#c9a98a",
+        "price": 2299
       }
     ]
   }
